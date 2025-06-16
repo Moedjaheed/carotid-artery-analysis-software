@@ -1,6 +1,7 @@
 """
-Launcher Script untuk Segmentasi Karotis - Dark Mode Version
+Launcher Script untuk Segmentasi Karotis - Enhanced Version
 Script untuk menjalankan semua komponen dengan mudah
+Includes Multiple Subject Selection and Model Selection features
 """
 
 import os
@@ -19,7 +20,7 @@ class SegmentationLauncher:
     
     def __init__(self, root):
         self.root = root
-        self.root.title("Carotid Segmentation Suite")
+        self.root.title("Carotid Segmentation Suite - Enhanced")
         self.root.geometry("800x600")
         self.root.minsize(700, 500)
         
@@ -85,7 +86,8 @@ class SegmentationLauncher:
         """Create home/dashboard tab"""
         home_frame = ttk.Frame(self.notebook)
         self.notebook.add(home_frame, text="🏠 Home")
-          # Welcome section
+        
+        # Welcome section
         welcome_frame = ttk.LabelFrame(home_frame, text="Welcome", padding=15)
         welcome_frame.pack(fill=tk.X, padx=10, pady=5)
         
@@ -127,7 +129,8 @@ measurements using advanced AI segmentation and data visualization.
         """Create inference processing tab"""
         inference_frame = ttk.Frame(self.notebook)
         self.notebook.add(inference_frame, text="🎯 Inference")
-          # Enhanced Inference section
+        
+        # Enhanced Inference section
         enhanced_frame = ttk.LabelFrame(inference_frame, text="Enhanced Inference", padding=15)
         enhanced_frame.pack(fill=tk.X, padx=10, pady=5)
         
@@ -225,75 +228,82 @@ measurements using advanced AI segmentation and data visualization.
         self.current_theme_label.pack(side="left", padx=10)
         
         # Theme Selection
-        theme_selection_frame = ttk.Frame(theme_section)
-        theme_selection_frame.pack(fill="x", pady=5)
-        
-        ttk.Label(theme_selection_frame, text="Select Theme:", 
-                 font=("Arial", 9)).pack(side="left")
-        
         self.theme_var = tk.StringVar(value=self.theme_manager.current_theme)
         
-        light_radio = ttk.Radiobutton(theme_selection_frame, text="☀️ Light Mode", 
-                                    variable=self.theme_var, value="light",
-                                    command=self.change_theme)
-        light_radio.pack(side="left", padx=10)
+        theme_options_frame = ttk.Frame(theme_section)
+        theme_options_frame.pack(fill="x", pady=5)
         
-        dark_radio = ttk.Radiobutton(theme_selection_frame, text="🌙 Dark Mode", 
-                                   variable=self.theme_var, value="dark",
-                                   command=self.change_theme)
-        dark_radio.pack(side="left", padx=10)
+        themes = ["light", "dark"]
+        for i, theme in enumerate(themes):
+            ttk.Radiobutton(theme_options_frame, text=theme.title() + " Mode", 
+                          variable=self.theme_var, value=theme,
+                          command=self.change_theme).grid(row=0, column=i, padx=10, sticky="w")
         
-        # Theme Toggle Button
+        # Theme buttons
         theme_buttons_frame = ttk.Frame(theme_section)
         theme_buttons_frame.pack(fill="x", pady=10)
         
-        toggle_btn = ttk.Button(theme_buttons_frame, text="🔄 Toggle Theme", 
-                               command=self.toggle_theme_with_update)
-        toggle_btn.pack(side="left", padx=5)
-        
-        reset_btn = ttk.Button(theme_buttons_frame, text="🔄 Reset to Light", 
-                              command=self.reset_theme)
-        reset_btn.pack(side="left", padx=5)
-    
-    def toggle_theme_quick(self):
-        """Quick theme toggle from header button"""
-        new_theme = self.theme_manager.switch_theme()
-        self.apply_current_theme()
-        if hasattr(self, 'current_theme_label'):
-            self.current_theme_label.config(text=new_theme.title())
-        if hasattr(self, 'theme_var'):
-            self.theme_var.set(new_theme)
-        self.status_var.set(f"Theme changed to {new_theme.title()} Mode")
+        ttk.Button(theme_buttons_frame, text="🔄 Toggle Theme", 
+                  command=self.toggle_theme_with_update).pack(side="left", padx=5)
+        ttk.Button(theme_buttons_frame, text="🔆 Reset to Light", 
+                  command=self.reset_theme).pack(side="left", padx=5)
     
     def apply_current_theme(self):
-        """Apply current theme to all widgets"""
-        # Configure ttk styles first
-        self.theme_manager.configure_ttk_style()
-        
-        # Apply theme to root and all widgets
-        self.theme_manager.apply_theme_recursive(self.root)
-        
-        # Update matplotlib plots if they exist
-        self.update_matplotlib_theme()
+        """Apply current theme to all UI elements"""
+        try:
+            current_theme = self.theme_manager.current_theme
+            print(f"DEBUG: Applying {current_theme} theme...")
+            
+            # Get theme colors
+            colors = self.theme_manager.get_theme_colors()
+            
+            # Configure ttk styles
+            style = ttk.Style()
+            
+            if current_theme == "dark":
+                # Dark theme configuration
+                style.theme_use('clam')
+                style.configure('TLabel', background=colors['bg'], foreground=colors['fg'])
+                style.configure('TFrame', background=colors['bg'])
+                style.configure('TLabelFrame', background=colors['bg'], foreground=colors['fg'])
+                style.configure('TButton', background=colors['button_bg'], foreground=colors['button_fg'])
+                style.configure('TNotebook', background=colors['bg'])
+                style.configure('TNotebook.Tab', background=colors['tab_bg'], foreground=colors['tab_fg'])
+                
+                # Configure main window
+                self.root.configure(bg=colors['bg'])
+            else:
+                # Light theme configuration  
+                style.theme_use('default')
+                
+            # Update matplotlib style if available
+            self.update_matplotlib_theme()
+            
+        except Exception as e:
+            print(f"DEBUG: Error applying theme: {e}")
     
     def update_matplotlib_theme(self):
-        """Update matplotlib plots to match current theme"""
+        """Update matplotlib theme to match current theme"""
         try:
-            # Update matplotlib rcParams for new plots
-            mpl_style = self.theme_manager.get_matplotlib_style()
-            for key, value in mpl_style.items():
-                if key != 'axes.prop_cycle':
-                    plt.rcParams[key] = value
-                else:
-                    # Handle prop_cycle separately
-                    try:
-                        from cycler import cycler
-                        if self.theme_manager.current_theme == "dark":
-                            colors = ['#4CAF50', '#2196F3', '#FF9800', '#F44336', '#9C27B0', '#00BCD4']
-                        else:
-                            colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']                        plt.rcParams['axes.prop_cycle'] = cycler('color', colors)
-                    except ImportError:
-                        print("DEBUG: cycler not available, using default colors")
+            current_theme = self.theme_manager.current_theme
+            if current_theme == "dark":
+                plt.style.use('dark_background')
+                # Set custom colors for dark theme
+                try:
+                    from cycler import cycler
+                    colors = ['#8dd3c7', '#ffffb3', '#bebada', '#fb8072', '#80b1d3', '#fdb462']
+                    plt.rcParams['axes.prop_cycle'] = cycler('color', colors)
+                except ImportError:
+                    print("DEBUG: cycler not available, using default colors")
+            else:
+                plt.style.use('default')
+                # Set custom colors for light theme
+                try:
+                    from cycler import cycler
+                    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+                    plt.rcParams['axes.prop_cycle'] = cycler('color', colors)
+                except ImportError:
+                    print("DEBUG: cycler not available, using default colors")
         except Exception as e:
             print(f"DEBUG: Error updating matplotlib theme: {e}")
     
@@ -320,6 +330,10 @@ measurements using advanced AI segmentation and data visualization.
         self.apply_current_theme()
         self.current_theme_label.config(text="Light")
         self.status_var.set("Theme reset to Light Mode")
+    
+    def toggle_theme_quick(self):
+        """Quick theme toggle from header button"""
+        self.toggle_theme_with_update()
     
     # Application launch methods
     def run_enhanced_inference(self):
@@ -385,46 +399,47 @@ measurements using advanced AI segmentation and data visualization.
             messagebox.showerror("Error", f"Failed to launch advanced analytics: {str(e)}")
     
     def check_dependencies(self):
-        """Check system dependencies"""
+        """Check and display dependency status"""
         print("DEBUG: Checking dependencies...")
         self.status_var.set("Checking dependencies...")
         
         try:
-            # Create dependency check window
+            # Create a new window for dependency status
             dep_window = tk.Toplevel(self.root)
-            dep_window.title("System Dependencies Check")
+            dep_window.title("Dependency Status")
             dep_window.geometry("600x400")
-            dep_window.transient(self.root)
-            dep_window.grab_set()
             
-            # Apply current theme to new window
-            self.theme_manager.apply_theme_recursive(dep_window)
+            # Create text widget with scrollbar
+            text_frame = tk.Frame(dep_window)
+            text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
             
-            text_area = tk.Text(dep_window, wrap=tk.WORD, padx=10, pady=10)
-            text_area.pack(fill=tk.BOTH, expand=True)
+            text_widget = tk.Text(text_frame, wrap=tk.WORD)
+            scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=text_widget.yview)
+            text_widget.configure(yscrollcommand=scrollbar.set)
+            
+            text_widget.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
             
             # Check dependencies
-            deps_status = "System Dependencies Check\n" + "="*50 + "\n\n"
+            dependencies = [
+                "torch", "torchvision", "cv2", "numpy", "matplotlib", 
+                "pandas", "scipy", "albumentations", "seaborn"
+            ]
             
-            # Check Python version
-            deps_status += f"Python Version: {sys.version}\n"
+            text_widget.insert(tk.END, "Dependency Status Check\n")
+            text_widget.insert(tk.END, "=" * 50 + "\n\n")
             
-            # Check key modules
-            modules = ['cv2', 'pandas', 'numpy', 'matplotlib', 'tkinter', 'PIL']
-            for module in modules:
+            for dep in dependencies:
                 try:
-                    __import__(module)
-                    deps_status += f"✓ {module}: Available\n"
+                    __import__(dep)
+                    text_widget.insert(tk.END, f"✅ {dep}: OK\n")
                 except ImportError:
-                    deps_status += f"✗ {module}: Missing\n"
+                    text_widget.insert(tk.END, f"❌ {dep}: NOT FOUND\n")
             
-            deps_status += f"\nWorking Directory: {os.getcwd()}\n"
-            deps_status += f"Current Theme: {self.theme_manager.current_theme.title()}\n"
+            text_widget.insert(tk.END, "\n" + "=" * 50 + "\n")
+            text_widget.insert(tk.END, "Check completed.\n")
             
-            text_area.insert(tk.END, deps_status)
-            text_area.config(state=tk.DISABLED)
-            
-            self.status_var.set("Dependencies check completed")
+            self.status_var.set("Dependencies checked")
             
         except Exception as e:
             print(f"DEBUG: Error checking dependencies: {e}")
@@ -433,42 +448,53 @@ measurements using advanced AI segmentation and data visualization.
     
     def open_data_folder(self):
         """Open data folder in file explorer"""
+        print("DEBUG: Opening data folder...")
+        self.status_var.set("Opening data folder...")
+        
         try:
-            data_path = os.path.join(os.getcwd(), "data_uji")
-            if os.path.exists(data_path):
-                if sys.platform == "win32":
-                    os.startfile(data_path)
-                else:
-                    subprocess.run(["xdg-open", data_path])
+            data_folder = "data_uji"
+            if os.path.exists(data_folder):
+                os.startfile(data_folder)
                 self.status_var.set("Data folder opened")
             else:
-                messagebox.showwarning("Warning", "Data folder not found")
+                messagebox.showwarning("Warning", f"Data folder '{data_folder}' not found!")
                 self.status_var.set("Data folder not found")
         except Exception as e:
             print(f"DEBUG: Error opening data folder: {e}")
+            self.status_var.set("Error opening data folder")
             messagebox.showerror("Error", f"Failed to open data folder: {str(e)}")
+
 
 def main():
     """Main function"""
-    print("DEBUG: Starting main function...")
-    print(f"DEBUG: Python version: {sys.version}")
-    print(f"DEBUG: Current working directory: {os.getcwd()}")
-    print(f"DEBUG: Script location: {os.path.abspath(__file__)}")
-    
     try:
+        print("DEBUG: Starting main function...")
+        print(f"DEBUG: Python version: {sys.version}")
+        print(f"DEBUG: Current working directory: {os.getcwd()}")
+        print(f"DEBUG: Script location: {__file__}")
+        
+        # Create main window
         root = tk.Tk()
         print("DEBUG: Tkinter root window created")
         
+        # Create and run application
         app = SegmentationLauncher(root)
-        print("DEBUG: SegmentationLauncher initialized")
+        print("DEBUG: SegmentationLauncher instance created")
         
-        print("DEBUG: Starting main loop...")
+        # Start the main loop
+        print("DEBUG: Starting GUI main loop...")
         root.mainloop()
-        print("DEBUG: Main loop ended")
         
     except Exception as e:
-        print(f"DEBUG: Error in main function: {str(e)}")
-        raise
+        print(f"DEBUG: Error in main function: {e}")
+        import traceback
+        traceback.print_exc()
+        if 'root' in locals():
+            try:
+                messagebox.showerror("Error", f"Application failed to start: {str(e)}")
+            except:
+                pass
+
 
 if __name__ == "__main__":
     main()

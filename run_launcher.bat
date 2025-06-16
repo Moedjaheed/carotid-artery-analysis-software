@@ -19,10 +19,12 @@ echo - Press 'D' for Direct Enhanced Data Viewer Launch
 echo - Press 'G' for Full GUI Launcher
 echo.
 echo [NEW: Advanced Features]
+echo - Enhanced Inference with Multiple Subject Selection (Checkboxes)
+echo - Model Selection with Radiobuttons (UNet variants)
 echo - Enhanced Inference with Pressure Data Integration
 echo - Enhanced Data Viewer (Overlay Video + Real-time Analysis)
 echo - Advanced Analytics Dashboard
-echo - Batch Process All Subjects
+echo - Batch Process All Subjects with Progress Monitoring
 echo - Comprehensive Statistical Analysis
 echo - Clinical Recommendations System
 echo - Multi-format Export (JSON/CSV/Excel)
@@ -32,7 +34,9 @@ echo - Dependencies Management
 echo - Project Folder Access
 echo.
 echo Latest Updates:
-echo - Enhanced Inference with pressure integration
+echo - NEW: Multiple Subject Selection with Checkboxes for batch processing
+echo - NEW: Model Selection with Radiobuttons (choose between different UNet models)
+echo - Enhanced Inference with pressure integration and progress monitoring
 echo - Enhanced Data Viewer with overlay and real-time analysis
 echo - Subject dropdown selection with status preview
 echo - Smart data synchronization and dual-axis plotting
@@ -40,6 +44,7 @@ echo - Real-time subject selection with pressure status
 echo - Advanced correlation analysis (diameter vs pressure)
 echo - Segmented video overlay display with original size preservation
 echo - Fixed OpenMP conflicts for stable processing
+echo - Comprehensive configuration save/load functionality
 echo - Comprehensive documentation and troubleshooting
 echo ========================================
 echo.
@@ -55,7 +60,7 @@ echo.
 if /I "%choice%"=="D" (
     echo ========================================
     echo    Launching Enhanced Data Viewer
-    echo    Direct Access - Overlay ^& Analysis
+    echo    Direct Access - Overlay and Analysis
     echo ========================================
     echo.
     goto launch_data_viewer
@@ -94,16 +99,33 @@ if %errorlevel% neq 0 (
     echo.
 )
 
-:: Check which launcher to use (prioritize enhanced version)
-if exist "launcher_with_inference_log.py" (
-    echo Using ENHANCED launcher with Pressure Integration and Advanced Analytics...
+:: Check which launcher to use (prioritize enhanced fixed version)
+if exist "launcher_enhanced_fixed.py" (
+    echo Using ENHANCED FIXED launcher with Multiple Subject Selection and Model Choice...
+    echo Loading: launcher_enhanced_fixed.py
+    echo.
+    echo Enhanced Features Available:
+    echo - Multiple Subject Selection with Checkboxes
+    echo - Model Selection with Radiobuttons    echo - Enhanced Inference with Pressure Data Integration
+    echo - Enhanced Data Viewer with overlay video display
+    echo - Subject selection with pressure availability status
+    echo - Real-time processing logs with progress monitoring
+    echo - Advanced correlation analysis (diameter vs pressure)
+    echo - Diameter/Pressure plot with frame-based X-axis
+    echo - Batch processing for all subjects
+    echo - Comprehensive analytics dashboard
+    echo - Configuration save/load functionality
+    echo.
+    python launcher_enhanced_fixed.py
+) else if exist "launcher_with_inference_log.py" (
+    echo Using FALLBACK launcher (may have syntax issues)...
     echo Loading: launcher_with_inference_log.py
     echo.    echo Enhanced Features Available:
     echo - Enhanced Inference with Pressure Data Integration
     echo - Enhanced Data Viewer with overlay video display
     echo - Subject selection with pressure availability status
     echo - Real-time processing logs with progress monitoring
-    echo - Advanced correlation analysis (diameter vs pressure^)
+    echo - Advanced correlation analysis (diameter vs pressure)
     echo - Diameter/Pressure plot with frame-based X-axis
     echo - Batch processing for all subjects
     echo - Comprehensive analytics dashboard
@@ -156,7 +178,7 @@ if %errorlevel% neq 0 (
 
 goto end_launcher
 
-:launch_data_viewer
+:launch_data_viewerpython enhanced_inference_gui.py
 :: Check if conda environment exists
 conda info --envs | findstr "ridho-ta" > nul
 if %errorlevel% neq 0 (

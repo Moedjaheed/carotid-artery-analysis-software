@@ -92,6 +92,10 @@ class ThemeManager:
             theme_name = self.current_theme
         return self.themes.get(theme_name, self.themes["light"])
     
+    def get_theme_colors(self, theme_name=None):
+        """Get theme colors dictionary (alias for get_theme)"""
+        return self.get_theme(theme_name)
+    
     def switch_theme(self):
         """Switch between light and dark theme"""
         self.current_theme = "dark" if self.current_theme == "light" else "light"
