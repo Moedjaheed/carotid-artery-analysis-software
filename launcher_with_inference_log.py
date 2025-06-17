@@ -291,7 +291,8 @@ measurements using advanced AI segmentation and data visualization.
                         if self.theme_manager.current_theme == "dark":
                             colors = ['#4CAF50', '#2196F3', '#FF9800', '#F44336', '#9C27B0', '#00BCD4']
                         else:
-                            colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']                        plt.rcParams['axes.prop_cycle'] = cycler('color', colors)
+                            colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+                        plt.rcParams['axes.prop_cycle'] = cycler('color', colors)
                     except ImportError:
                         print("DEBUG: cycler not available, using default colors")
         except Exception as e:
