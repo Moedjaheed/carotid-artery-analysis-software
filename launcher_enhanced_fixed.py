@@ -100,7 +100,8 @@ measurements using advanced AI segmentation and data visualization.
 • Multiple Subject Selection: Process multiple subjects simultaneously using checkboxes
 • Model Selection: Choose between different AI models using radiobuttons  
 • Enhanced Processing: Integrated pressure data analysis with correlation plots
-• Batch Processing: Efficient processing of multiple subjects with progress monitoring"""
+• Batch Processing: Efficient processing of multiple subjects with progress monitoring
+• Frame Comparison Viewer: Dual frame analysis with interactive vertical line indicators"""
         
         ttk.Label(welcome_frame, text=welcome_text, font=("Arial", 11), 
                  justify=tk.LEFT, wraplength=700).pack(anchor=tk.W)
@@ -111,14 +112,17 @@ measurements using advanced AI segmentation and data visualization.
         
         actions_grid = ttk.Frame(actions_frame)
         actions_grid.pack(fill=tk.X)
-        
-        # Row 1
+          # Row 1
         ttk.Button(actions_grid, text="🎯 Enhanced Inference", 
                   command=self.run_enhanced_inference, width=20).grid(row=0, column=0, padx=5, pady=5)
         ttk.Button(actions_grid, text="📊 Data Viewer", 
                   command=self.run_data_viewer, width=20).grid(row=0, column=1, padx=5, pady=5)
         ttk.Button(actions_grid, text="📈 Analytics", 
                   command=self.run_advanced_analytics, width=20).grid(row=0, column=2, padx=5, pady=5)
+        
+        # Row 2 - New Frame Comparison Viewer
+        ttk.Button(actions_grid, text="🔄 Frame Comparison (NEW!)", 
+                  command=self.run_frame_comparison_viewer, width=20).grid(row=1, column=0, padx=5, pady=5)
         
         # Configure grid weights
         actions_grid.columnconfigure(0, weight=1)
@@ -145,8 +149,7 @@ measurements using advanced AI segmentation and data visualization.
         
         ttk.Button(inference_buttons, text="🎯 Enhanced Inference (Multiple Subjects + Model Selection)", 
                   command=self.run_enhanced_inference, width=50).pack(pady=2, fill=tk.X)
-        ttk.Button(inference_buttons, text="📋 Single Subject Inference (Legacy)", 
-                  command=self.run_single_inference, width=50).pack(pady=2, fill=tk.X)
+        ttk.Button(inference_buttons, text="📋 Single Subject Inference (Legacy)",                  command=self.run_single_inference, width=50).pack(pady=2, fill=tk.X)
     
     def create_analytics_tab(self):
         """Create analytics and visualization tab"""
@@ -160,8 +163,24 @@ measurements using advanced AI segmentation and data visualization.
         ttk.Label(viewer_frame, text="Interactive data visualization and analysis tools", 
                  font=("Arial", 10)).pack(anchor=tk.W, pady=(0, 10))
         
-        ttk.Button(viewer_frame, text="📈 Enhanced Data Viewer", 
-                  command=self.run_data_viewer, width=30).pack(fill=tk.X)
+        # Grid layout for viewer buttons
+        viewer_grid = ttk.Frame(viewer_frame)
+        viewer_grid.pack(fill=tk.X)
+        
+        ttk.Button(viewer_grid, text="📈 Enhanced Data Viewer", 
+                  command=self.run_data_viewer, width=30).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+        
+        ttk.Button(viewer_grid, text="🔄 Frame Comparison Viewer (NEW!)", 
+                  command=self.run_frame_comparison_viewer, width=30).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        
+        viewer_grid.columnconfigure(0, weight=1)
+        viewer_grid.columnconfigure(1, weight=1)
+        
+        # Frame Comparison description
+        frame_desc = ttk.Label(viewer_frame, 
+                              text="🆕 Frame Comparison: Dual frame analysis with vertical line indicators", 
+                              font=("Arial", 9), foreground="blue")
+        frame_desc.pack(anchor=tk.W, pady=(5, 0))
         
         # Advanced Analytics section
         advanced_frame = ttk.LabelFrame(analytics_frame, text="Advanced Analytics", padding=15)
@@ -384,6 +403,40 @@ measurements using advanced AI segmentation and data visualization.
             print(f"DEBUG: Error launching data viewer: {e}")
             self.status_var.set("Error launching data viewer")
             messagebox.showerror("Error", f"Failed to launch data viewer: {str(e)}")
+    
+    def run_frame_comparison_viewer(self):
+        """Launch Frame Comparison Viewer"""
+        print("DEBUG: Starting Frame Comparison Viewer...")
+        self.status_var.set("Starting Frame Comparison Viewer...")
+        
+        try:
+            if os.path.exists("frame_comparison_viewer.py"):
+                subprocess.Popen([sys.executable, "frame_comparison_viewer.py"], cwd=os.getcwd())
+                self.status_var.set("Frame Comparison Viewer launched")
+                print("DEBUG: Frame Comparison Viewer launched successfully")
+                
+                # Show feature info
+                messagebox.showinfo("Frame Comparison Viewer", 
+                                  "Frame Comparison Viewer Features:\n\n"
+                                  "• Dual frame display with side-by-side comparison\n"
+                                  "• Interactive vertical line indicators (Blue/Red)\n"
+                                  "• Click on plot to set frame positions\n"
+                                  "• Real-time diameter and pressure data display\n"
+                                  "• Theme support (Light/Dark modes)\n"
+                                  "• Enhanced data synchronization\n\n"
+                                  "Usage:\n"
+                                  "- Left click on plot → Set Frame 1 (Blue line)\n"
+                                  "- Right click on plot → Set Frame 2 (Red line)\n"
+                                  "- Use sliders for precise frame selection")
+            else:
+                self.status_var.set("Frame Comparison Viewer not found")
+                messagebox.showerror("Error", 
+                                   "frame_comparison_viewer.py not found!\n\n"
+                                   "Please ensure the Frame Comparison Viewer file exists in the project directory.")
+        except Exception as e:
+            print(f"DEBUG: Error launching Frame Comparison Viewer: {e}")
+            self.status_var.set("Error launching Frame Comparison Viewer")
+            messagebox.showerror("Error", f"Failed to launch Frame Comparison Viewer: {str(e)}")
     
     def run_advanced_analytics(self):
         """Launch advanced analytics"""

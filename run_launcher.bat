@@ -16,6 +16,7 @@ echo - View Inference Results
 echo.
 echo [Quick Access]
 echo - Press 'D' for Direct Enhanced Data Viewer Launch
+echo - Press 'F' for Frame Comparison Viewer (NEW!)
 echo - Press 'G' for Full GUI Launcher
 echo.
 echo [NEW: Advanced Features]
@@ -23,6 +24,7 @@ echo - Enhanced Inference with Multiple Subject Selection (Checkboxes)
 echo - Model Selection with Radiobuttons (UNet variants)
 echo - Enhanced Inference with Pressure Data Integration
 echo - Enhanced Data Viewer (Overlay Video + Real-time Analysis)
+echo - Frame Comparison Viewer (Dual Frame Analysis with Vertical Lines) NEW!
 echo - Advanced Analytics Dashboard
 echo - Batch Process All Subjects with Progress Monitoring
 echo - Comprehensive Statistical Analysis
@@ -34,6 +36,8 @@ echo - Dependencies Management
 echo - Project Folder Access
 echo.
 echo Latest Updates:
+echo - NEW: Frame Comparison Viewer with dual vertical line indicators
+echo - NEW: Interactive plot selection for frame comparison
 echo - NEW: Multiple Subject Selection with Checkboxes for batch processing
 echo - NEW: Model Selection with Radiobuttons (choose between different UNet models)
 echo - Enhanced Inference with pressure integration and progress monitoring
@@ -50,10 +54,11 @@ echo ========================================
 echo.
 echo Quick Launch Options:
 echo [D] Launch Enhanced Data Viewer directly
+echo [F] Launch Frame Comparison Viewer (NEW!)
 echo [G] Launch Full GUI Launcher
 echo [Enter] Continue with standard launcher
 echo.
-set /p choice="Your choice (D/G/Enter): "
+set /p choice="Your choice (D/F/G/Enter): "
 echo.
 
 :: Handle quick launch choices
@@ -64,6 +69,15 @@ if /I "%choice%"=="D" (
     echo ========================================
     echo.
     goto launch_data_viewer
+)
+
+if /I "%choice%"=="F" (
+    echo ========================================
+    echo    Launching Frame Comparison Viewer
+    echo    Dual Frame Analysis with Vertical Lines
+    echo ========================================
+    echo.
+    goto launch_frame_comparison
 )
 
 if /I "%choice%"=="G" (
@@ -178,7 +192,66 @@ if %errorlevel% neq 0 (
 
 goto end_launcher
 
-:launch_data_viewerpython enhanced_inference_gui.py
+:launch_frame_comparison
+
+:: Check if conda environment exists
+conda info --envs | findstr "ridho-ta" > nul
+if %errorlevel% neq 0 (
+    echo Warning: ridho-ta conda environment not found
+    echo You may need to create it first: conda create -n ridho-ta python=3.8
+    echo.
+)
+
+:: Try to activate conda environment
+echo Activating conda environment: ridho-ta
+call conda activate ridho-ta 2>nul
+if %errorlevel% neq 0 (
+    echo Warning: Could not activate ridho-ta environment
+    echo Running with current Python environment
+    echo.
+)
+
+:: Launch Frame Comparison Viewer directly
+if exist "frame_comparison_viewer.py" (
+    echo Launching Frame Comparison Viewer...
+    echo.
+    echo Features:
+    echo - Dual frame display with comparison
+    echo - Interactive vertical line indicators (Blue for Frame 1, Red for Frame 2)
+    echo - Real-time diameter vs pressure analysis
+    echo - Click on plot to set frame positions
+    echo - Synchronized data visualization
+    echo - Theme support (Light/Dark modes)
+    echo.
+    python frame_comparison_viewer.py
+    
+    if %errorlevel% neq 0 (
+        echo.
+        echo ERROR: Frame Comparison Viewer failed to start
+        echo Error code: %errorlevel%
+        echo.
+        echo Troubleshooting:
+        echo - Check if all dependencies are installed: pip install -r requirements.txt
+        echo - Ensure tkinter is available (should be included with Python)
+        echo - Check if data_uji/ folder exists with subject data
+        echo - Verify inference_results/ folder exists for analysis data
+        echo - Ensure matplotlib and PIL are properly installed
+        echo.
+        pause
+        exit /b 1
+    )
+) else (
+    echo ERROR: frame_comparison_viewer.py not found!
+    echo Please ensure the Frame Comparison Viewer file exists
+    echo.
+    pause
+    exit /b 1
+)
+
+goto end_launcher
+
+:launch_data_viewer
+
 :: Check if conda environment exists
 conda info --envs | findstr "ridho-ta" > nul
 if %errorlevel% neq 0 (
@@ -238,13 +311,16 @@ goto end_launcher
 echo.
 echo ========================================
 echo Thank you for using Carotid Segmentation Suite!
-echo Enhanced Analytics Suite with Pressure Integration & Data Viewer - Version 3.1
+echo Enhanced Analytics Suite with Pressure Integration & Data Viewer - Version 3.2
 echo.
 echo Key Features:
 echo - Enhanced Data Viewer with segmented video overlay
+echo - Frame Comparison Viewer with dual vertical line indicators (NEW!)
 echo - Real-time diameter vs pressure analysis
 echo - Frame-based correlation plots
+echo - Interactive plot selection for frame comparison
 echo - Original size image preservation
+echo - Theme support (Light/Dark modes)
 echo.
 echo For questions or support, check:
 echo - COMPLETION_SUMMARY.md (Latest Implementation Status)
