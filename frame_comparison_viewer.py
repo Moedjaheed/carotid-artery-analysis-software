@@ -313,12 +313,14 @@ class FrameComparisonViewer:
         """Load subject data via folder browser"""
         folder = filedialog.askdirectory(title="Select Subject Folder")
         if not folder:
-            return
-        self.load_subject_from_path(folder)
-            
+            return        self.load_subject_from_path(folder)
+    
     def load_subject_from_path(self, folder):
         """Load subject data from specified path"""
         try:
+            # Clear previous data first
+            self.clear_previous_data()
+            
             subject_name = os.path.basename(folder)
             self.status_var.set(f"Loading {subject_name}...")
             
@@ -711,8 +713,7 @@ class FrameComparisonViewer:
                 frame2_data = self.synced_data.loc[[closest_idx]]
                 print(f"DEBUG: Using closest frame for Frame 2: {self.synced_data.loc[closest_idx, 'frame']}")
             
-            if not frame2_data.empty:
-                # Try different diameter column names
+            if not frame2_data.empty:                # Try different diameter column names
                 diameter2 = '--'
                 for col in ['diameter', 'Diameter (mm)', 'Diameter', 'avg_diameter']:
                     if col in frame2_data.columns:
@@ -741,7 +742,18 @@ class FrameComparisonViewer:
     
     def update_plot(self):
         """Update the plot with dual vertical lines"""
+        # Clear the plot completely
         self.ax.clear()
+        
+        # Clear any secondary axes that might exist
+        if hasattr(self, 'ax') and hasattr(self.ax, 'figure'):
+            # Remove all axes from the figure and recreate the main one
+            self.ax.figure.clear()
+            self.ax = self.ax.figure.add_subplot(111)
+        
+        # Reset vertical line references
+        self.vertical_line1 = None
+        self.vertical_line2 = None
         
         if self.synced_data is None or self.synced_data.empty:
             self.ax.text(0.5, 0.5, 'No data available\nLoad a subject to view analysis', 
@@ -885,6 +897,71 @@ class FrameComparisonViewer:
         # Apply current theme to plot
         self.apply_current_theme()
         self.canvas.draw()
+
+    def clear_previous_data(self):
+        """Clear all previous data before loading new subject"""
+        try:
+            print("DEBUG: Clearing previous data...")
+            
+            # Reset data containers
+            self.video_path = None
+            self.segmented_video_path = None
+            self.diameter_data = None
+            self.pressure_data = None
+            self.synced_data = None
+            
+            # Release video capture
+            if self.cap:
+                self.cap.release()
+                self.cap = None
+            
+            # Reset frame variables
+            self.current_frame = 0
+            self.total_frames = 0
+            self.frame1_index = 0
+            self.frame2_index = 0
+            
+            # Clear vertical lines references
+            self.vertical_line1 = None
+            self.vertical_line2 = None
+            
+            # Clear and reset the plot
+            if hasattr(self, 'ax'):
+                self.ax.clear()
+                self.ax.text(0.5, 0.5, 'No data loaded\nSelect a subject to begin analysis', 
+                            horizontalalignment='center', verticalalignment='center', 
+                            transform=self.ax.transAxes, fontsize=12, color='gray')
+                if hasattr(self, 'canvas'):
+                    self.canvas.draw()
+            
+            # Reset frame info labels
+            if hasattr(self, 'frame1_info_label'):
+                self.frame1_info_label.configure(text="Diameter: -- | Pressure: -- N")
+            if hasattr(self, 'frame2_info_label'):
+                self.frame2_info_label.configure(text="Diameter: -- | Pressure: -- N")
+            
+            # Reset video displays
+            if hasattr(self, 'video1_label'):
+                self.video1_label.configure(image='')
+                self.video1_label.image = None
+            if hasattr(self, 'video2_label'):
+                self.video2_label.configure(image='')
+                self.video2_label.image = None
+            
+            # Reset frame labels
+            if hasattr(self, 'frame1_label'):
+                self.frame1_label.configure(text="0/0")
+            if hasattr(self, 'frame2_label'):
+                self.frame2_label.configure(text="0/0")
+            
+            # Reset status
+            if hasattr(self, 'status_var'):
+                self.status_var.set("Ready - Select a subject to load")
+            
+            print("DEBUG: Previous data cleared successfully")
+            
+        except Exception as e:
+            print(f"DEBUG: Error clearing previous data: {e}")
 
 def main():
     root = tk.Tk()
