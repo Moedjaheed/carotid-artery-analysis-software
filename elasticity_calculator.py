@@ -233,7 +233,7 @@ class ElasticityCalculator:
         self.baseline_frame_label = ttk.Label(baseline_controls, text="0/0")
         self.baseline_frame_label.pack()
         
-        self.baseline_info_label = ttk.Label(baseline_frame, text="Baseline: Diameter: -- | Pressure: -- N", foreground="blue")
+        self.baseline_info_label = ttk.Label(baseline_frame, text="Baseline: Diameter: -- | Pressure: -- N", foreground="Purple")
         self.baseline_info_label.pack(side=tk.LEFT, padx=(10, 0))
         
         # Compressed frame (right)
@@ -984,8 +984,7 @@ class ElasticityCalculator:
                     ax2.set_ylabel('Pressure (N)', color='g')
                     ax2.tick_params(axis='y', labelcolor='g')
                     pressure_plotted = True
-            
-            # If no data was plotted, show sample data or message
+              # If no data was plotted, show sample data or message
             if not diameter_plotted and not pressure_plotted:
                 # Create sample data for visualization
                 frames = self.synced_data['frame']
@@ -996,7 +995,7 @@ class ElasticityCalculator:
             
             # Add vertical lines for selected frames
             if hasattr(self, 'baseline_frame_index'):
-                self.vertical_line1 = self.ax.axvline(x=self.baseline_frame_index, color='blue', 
+                self.vertical_line1 = self.ax.axvline(x=self.baseline_frame_index, color='purple', 
                                                      linestyle='-', linewidth=2, alpha=0.7, 
                                                      label=f'Baseline Frame {self.baseline_frame_index}')
             
