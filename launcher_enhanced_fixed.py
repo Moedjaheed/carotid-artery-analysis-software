@@ -196,8 +196,7 @@ measurements using advanced AI segmentation and data visualization.
         """Create tools and utilities tab"""
         tools_frame = ttk.Frame(self.notebook)
         self.notebook.add(tools_frame, text="🔧 Tools")
-        
-        # System tools
+          # System tools
         system_frame = ttk.LabelFrame(tools_frame, text="System Tools", padding=15)
         system_frame.pack(fill=tk.X, padx=10, pady=5)
         
@@ -208,6 +207,21 @@ measurements using advanced AI segmentation and data visualization.
                   command=self.check_dependencies).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
         ttk.Button(tools_grid, text="📂 Open Data Folder", 
                   command=self.open_data_folder).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        
+        # Analysis tools
+        analysis_tools_frame = ttk.LabelFrame(tools_frame, text="Analysis Tools", padding=15)
+        analysis_tools_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        analysis_grid = ttk.Frame(analysis_tools_frame)
+        analysis_grid.pack(fill=tk.X)
+        
+        ttk.Button(analysis_grid, text="📊 Elasticity Calculator", 
+                  command=self.launch_elasticity_calculator).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+        ttk.Button(analysis_grid, text="📈 Frame Comparison", 
+                  command=self.launch_frame_comparison).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        
+        analysis_grid.columnconfigure(0, weight=1)
+        analysis_grid.columnconfigure(1, weight=1)
         
         tools_grid.columnconfigure(0, weight=1)
         tools_grid.columnconfigure(1, weight=1)
@@ -516,6 +530,56 @@ measurements using advanced AI segmentation and data visualization.
             print(f"DEBUG: Error opening data folder: {e}")
             self.status_var.set("Error opening data folder")
             messagebox.showerror("Error", f"Failed to open data folder: {str(e)}")
+    
+    def launch_elasticity_calculator(self):
+        """Launch Elasticity Calculator tool"""
+        print("DEBUG: Launching Elasticity Calculator...")
+        self.status_var.set("Launching Elasticity Calculator...")
+        
+        try:
+            # Check if file exists
+            elasticity_calculator_path = "elasticity_calculator.py"
+            if not os.path.exists(elasticity_calculator_path):
+                messagebox.showerror("Error", f"Elasticity Calculator not found: {elasticity_calculator_path}")
+                self.status_var.set("Elasticity Calculator not found")
+                return
+            
+            # Launch in separate process
+            subprocess.Popen([sys.executable, elasticity_calculator_path], 
+                           cwd=os.getcwd(),
+                           creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0)
+            self.status_var.set("Elasticity Calculator launched")
+            print("DEBUG: Elasticity Calculator launched successfully")
+            
+        except Exception as e:
+            print(f"DEBUG: Error launching Elasticity Calculator: {e}")
+            self.status_var.set("Error launching Elasticity Calculator")
+            messagebox.showerror("Error", f"Failed to launch Elasticity Calculator: {str(e)}")
+    
+    def launch_frame_comparison(self):
+        """Launch Frame Comparison Viewer"""
+        print("DEBUG: Launching Frame Comparison Viewer...")
+        self.status_var.set("Launching Frame Comparison Viewer...")
+        
+        try:
+            # Check if file exists
+            frame_comparison_path = "frame_comparison_viewer.py"
+            if not os.path.exists(frame_comparison_path):
+                messagebox.showerror("Error", f"Frame Comparison Viewer not found: {frame_comparison_path}")
+                self.status_var.set("Frame Comparison Viewer not found")
+                return
+            
+            # Launch in separate process
+            subprocess.Popen([sys.executable, frame_comparison_path], 
+                           cwd=os.getcwd(),
+                           creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0)
+            self.status_var.set("Frame Comparison Viewer launched")
+            print("DEBUG: Frame Comparison Viewer launched successfully")
+            
+        except Exception as e:
+            print(f"DEBUG: Error launching Frame Comparison Viewer: {e}")
+            self.status_var.set("Error launching Frame Comparison Viewer")
+            messagebox.showerror("Error", f"Failed to launch Frame Comparison Viewer: {str(e)}")
 
 
 def main():
