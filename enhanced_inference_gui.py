@@ -39,9 +39,8 @@ class EnhancedInferenceGUI:
         # Main container
         main_frame = tk.Frame(self.root)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
-        # Title
-        title_label = tk.Label(main_frame, text="🎯 Enhanced Inference Suite", 
+          # Title
+        title_label = tk.Label(main_frame, text="[TARGET] Enhanced Inference Suite", 
                               font=("Arial", 16, "bold"), fg="darkblue")
         title_label.pack(pady=(0, 20))
         
@@ -67,7 +66,7 @@ class EnhancedInferenceGUI:
     def create_subject_tab(self, notebook):
         """Create subject selection tab with checkboxes"""
         subject_frame = ttk.Frame(notebook)
-        notebook.add(subject_frame, text="📋 Subject Selection")
+        notebook.add(subject_frame, text="[LIST] Subject Selection")
         
         # Header
         header_frame = tk.Frame(subject_frame)
@@ -149,7 +148,7 @@ class EnhancedInferenceGUI:
     def create_options_tab(self, notebook):
         """Create processing options tab"""
         options_frame = ttk.Frame(notebook)
-        notebook.add(options_frame, text="⚙️ Processing Options")
+        notebook.add(options_frame, text="[TOOL] Processing Options")
         
         # Processing options
         processing_frame = tk.LabelFrame(options_frame, text="Processing Settings", 
@@ -163,7 +162,7 @@ class EnhancedInferenceGUI:
         tk.Checkbutton(pressure_frame, text="Enable Enhanced Processing with Pressure Integration",
                       variable=self.use_pressure, font=("Arial", 11)).pack(side=tk.LEFT)
         
-        tk.Label(pressure_frame, text="ℹ️", font=("Arial", 12), fg="blue").pack(side=tk.LEFT, padx=5)
+        tk.Label(pressure_frame, text="[INFO]", font=("Arial", 12), fg="blue").pack(side=tk.LEFT, padx=5)
         
         # Info text
         info_text = """Enhanced Processing includes:
@@ -194,7 +193,7 @@ class EnhancedInferenceGUI:
     def create_progress_tab(self, notebook):
         """Create progress monitoring tab"""
         progress_frame = ttk.Frame(notebook)
-        notebook.add(progress_frame, text="📊 Progress")
+        notebook.add(progress_frame, text="Progress")
         
         # Progress display
         progress_container = tk.Frame(progress_frame)
@@ -245,17 +244,16 @@ class EnhancedInferenceGUI:
         right_buttons = tk.Frame(button_frame)
         right_buttons.pack(side=tk.RIGHT)
         
-        self.start_button = tk.Button(right_buttons, text="🚀 Start Processing", 
+        self.start_button = tk.Button(right_buttons, text="[START] Start Processing", 
                                      command=self.start_processing, 
                                      bg="green", fg="white", font=("Arial", 12, "bold"))
         self.start_button.pack(side=tk.LEFT, padx=5)
         
-        self.stop_button = tk.Button(right_buttons, text="⏹️ Stop", 
+        self.stop_button = tk.Button(right_buttons, text="[STOP] Stop", 
                                     command=self.stop_processing, 
                                     bg="red", fg="white", state=tk.DISABLED)
-        self.stop_button.pack(side=tk.LEFT, padx=5)
-        
-        tk.Button(right_buttons, text="❌ Close", 
+        self.stop_button.pack(side=tk.LEFT, padx=5)        
+        tk.Button(right_buttons, text="Close", 
                  command=self.root.quit, bg="gray").pack(side=tk.LEFT, padx=5)
         
     def scan_subjects(self):
@@ -269,7 +267,7 @@ class EnhancedInferenceGUI:
         self.selected_subjects.clear()
         
         if not os.path.exists("data_uji"):
-            self.subject_status_label.config(text="❌ data_uji folder not found!")
+            self.subject_status_label.config(text="[ERROR] data_uji folder not found!")
             return
             
         subjects = []
@@ -325,17 +323,17 @@ class EnhancedInferenceGUI:
             if subject['has_video']:
                 tk.Label(status_frame, text="🎥", font=("Arial", 12)).pack(side=tk.LEFT)
             else:
-                tk.Label(status_frame, text="❌🎥", font=("Arial", 12), fg="red").pack(side=tk.LEFT)
+                tk.Label(status_frame, text="[NO-VIDEO]", font=("Arial", 12), fg="red").pack(side=tk.LEFT)
                 
             if subject['has_pressure']:
-                tk.Label(status_frame, text="📊", font=("Arial", 12)).pack(side=tk.LEFT)
+                tk.Label(status_frame, text="[STATUS]", font=("Arial", 12)).pack(side=tk.LEFT)
             else:
-                tk.Label(status_frame, text="❌📊", font=("Arial", 12), fg="orange").pack(side=tk.LEFT)
+                tk.Label(status_frame, text="[NO-DATA]", font=("Arial", 12), fg="orange").pack(side=tk.LEFT)
                 
             if subject['has_timestamps']:
                 tk.Label(status_frame, text="⏰", font=("Arial", 12)).pack(side=tk.LEFT)
             else:
-                tk.Label(status_frame, text="❌⏰", font=("Arial", 12), fg="orange").pack(side=tk.LEFT)
+                tk.Label(status_frame, text="[NO-TIME]", font=("Arial", 12), fg="orange").pack(side=tk.LEFT)
             
             # Status text
             status_text = "Ready" if subject['has_video'] else "Missing video file"
@@ -367,7 +365,7 @@ class EnhancedInferenceGUI:
         model_files = glob.glob("*.pth")
         
         if not model_files:
-            tk.Label(self.model_list_frame, text="❌ No .pth model files found in current directory",
+            tk.Label(self.model_list_frame, text="[ERROR] No .pth model files found in current directory",
                     font=("Arial", 11), fg="red", bg="white").pack(pady=20)
             self.model_status_label.config(text="No models found", fg="red")
             return
@@ -546,8 +544,7 @@ class EnhancedInferenceGUI:
                 
                 if self.use_pressure.get():
                     cmd.append("--use_pressure")
-                
-                # Run inference
+                  # Run inference
                 try:
                     # Set environment variable
                     env = os.environ.copy()
@@ -557,35 +554,35 @@ class EnhancedInferenceGUI:
                                           cwd=os.getcwd(), env=env, timeout=3600)  # 1 hour timeout
                     
                     if result.returncode == 0:
-                        self.log_message(f"✅ {subject}: Processing completed successfully")
+                        self.log_message(f"[OK] {subject}: Processing completed successfully")
                         completed += 1
                     else:
-                        self.log_message(f"❌ {subject}: Processing failed")
+                        self.log_message(f"[ERROR] {subject}: Processing failed")
                         self.log_message(f"Error output: {result.stderr}")
                         
                 except subprocess.TimeoutExpired:
-                    self.log_message(f"⏰ {subject}: Processing timed out")
+                    self.log_message(f"[TIMEOUT] {subject}: Processing timed out")
                 except Exception as e:
-                    self.log_message(f"❌ {subject}: Exception occurred: {e}")
+                    self.log_message(f"[ERROR] {subject}: Exception occurred: {e}")
                 
-                # Update progress
+                # Update progress with more detail
                 progress_pct = ((completed) / total_subjects) * 100
-                self.update_progress(f"Completed {completed}/{total_subjects} subjects ({progress_pct:.1f}%)")
+                elapsed_time = (completed / total_subjects) * 100 if completed > 0 else 0
+                self.update_progress(f"Progress: {completed}/{total_subjects} subjects ({progress_pct:.1f}%) completed")
             
             # Final status
             if self.processing:  # Not stopped by user
-                self.update_progress(f"✅ Processing completed! {completed}/{total_subjects} subjects processed successfully")
+                self.update_progress(f"[SUCCESS] Processing completed! {completed}/{total_subjects} subjects processed successfully")
                 if completed == total_subjects:
                     messagebox.showinfo("Success", f"All {total_subjects} subjects processed successfully!")
-                else:
-                    messagebox.showwarning("Partial Success", 
+                else:                    messagebox.showwarning("Partial Success", 
                                          f"Processed {completed} out of {total_subjects} subjects. Check log for details.")
             else:
-                self.update_progress("⏹️ Processing stopped by user")
+                self.update_progress("[STOP] Processing stopped by user")
                 
         except Exception as e:
-            self.log_message(f"❌ Critical error during processing: {e}")
-            self.update_progress("❌ Processing failed due to critical error")
+            self.log_message(f"[CRITICAL] Critical error during processing: {e}")
+            self.update_progress("[ERROR] Processing failed due to critical error")
             messagebox.showerror("Error", f"Processing failed: {e}")
         finally:
             # Reset UI

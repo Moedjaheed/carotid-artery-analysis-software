@@ -76,9 +76,9 @@ class ElasticityCalculator:
                             if has_inference:
                                 # Check for diameter data
                                 diameter_files = glob.glob(os.path.join(inference_path, "*diameter_data*.csv"))
-                                status = "✅ Complete" if diameter_files else "⚠️ No Analysis"
+                                status = "[SUCCESS] Complete" if diameter_files else "[WARN] No Analysis"
                             else:
-                                status = "❌ No Results"
+                                status = "[ERROR] No Results"
                             
                             self.available_subjects.append(f"{item} [{status}]")
                         
@@ -561,17 +561,13 @@ class ElasticityCalculator:
             self.baseline_scale.configure(to=self.total_frames-1)
             self.compressed_scale.configure(to=self.total_frames-1)
             
-            # Set initial frame positions
-            self.baseline_frame_var.set(0)
+            # Set initial frame positions            self.baseline_frame_var.set(0)
             self.compressed_frame_var.set(min(self.total_frames-1, self.total_frames//2))
             self.baseline_frame_index = 0
             self.compressed_frame_index = min(self.total_frames-1, self.total_frames//2)
             
-            # Load diameter data
+            # Load diameter data (includes pressure mapping if needed)
             self.load_diameter_data(subject_name)
-            
-            # Load pressure data  
-            self.load_pressure_data(inference_folder)
             
             # Sync data
             self.sync_data()
@@ -584,10 +580,9 @@ class ElasticityCalculator:
             # Final status message
             data_status = []
             if self.diameter_data is not None:
-                data_status.append("Diameter ✅")
+                data_status.append("Diameter [SUCCESS]")
             if self.pressure_data is not None:
-                data_status.append("Pressure ✅")
-            
+                data_status.append("Pressure [SUCCESS]")            
             status_msg = f"Loaded {subject_name} - {self.total_frames} frames"
             if data_status:
                 status_msg += f" | Data: {', '.join(data_status)}"
@@ -619,15 +614,19 @@ class ElasticityCalculator:
                 print("DEBUG: No CSV files found in inference folder")
                 return
             
-            # Prioritize files with pressure data
+            # Prioritize files with pressure data (already combined)
             pressure_files = [f for f in diameter_files if 'pressure' in f.lower()]
             if pressure_files:
                 self.diameter_data = pd.read_csv(pressure_files[0])
                 print(f"DEBUG: Loaded diameter data with pressure: {len(self.diameter_data)} rows")
+                print(f"DEBUG: Found pressure data in {os.path.basename(pressure_files[0])}")
             else:
-                # Use the first CSV file found
+                # Use the first diameter CSV file found
                 self.diameter_data = pd.read_csv(diameter_files[0])
                 print(f"DEBUG: Loaded diameter data: {len(self.diameter_data)} rows")
+                
+                # Try to load separate pressure data
+                self.load_separate_pressure_data(subject_name)
             
             print(f"DEBUG: Diameter columns: {list(self.diameter_data.columns)}")
             
@@ -644,8 +643,7 @@ class ElasticityCalculator:
                 if diameter_col_found != 'diameter':
                     self.diameter_data['diameter'] = self.diameter_data[diameter_col_found]
                     print(f"DEBUG: Standardized diameter column from '{diameter_col_found}' to 'diameter'")
-                
-                # Validate diameter data
+                  # Validate diameter data
                 valid_diameter = pd.to_numeric(self.diameter_data['diameter'], errors='coerce').notna()
                 print(f"DEBUG: {valid_diameter.sum()} valid diameter measurements")
                 
@@ -653,104 +651,306 @@ class ElasticityCalculator:
             print(f"DEBUG: Error loading diameter data: {e}")
             self.diameter_data = None
     
-    def load_pressure_data(self, folder):
-        """Load pressure data from CSV files"""
+    def load_separate_pressure_data(self, subject_name):
+        """Load pressure data using timestamp synchronization for accurate alignment"""
         try:
-            if not os.path.exists(folder):
-                print("DEBUG: Inference folder not found for pressure data")
+            # Look for pressure data in data_uji folder
+            data_uji_folder = os.path.join("data_uji", subject_name)
+            if not os.path.exists(data_uji_folder):
+                print("DEBUG: No data_uji folder found for pressure data")
                 return
-                
-            # Look for CSV files that might contain pressure data
-            csv_files = glob.glob(os.path.join(folder, "*.csv"))
             
-            for file_path in csv_files:
-                df = pd.read_csv(file_path)
-                # Check if this file contains pressure data
-                if 'pressure' in df.columns or 'Pressure' in df.columns:
-                    self.pressure_data = df
-                    print(f"DEBUG: Found pressure data in {os.path.basename(file_path)}")
+            # Load pressure data
+            subject_files = glob.glob(os.path.join(data_uji_folder, f"{subject_name.lower()}.csv"))
+            if not subject_files:
+                subject_files = glob.glob(os.path.join(data_uji_folder, "subject*.csv"))
+                if not subject_files:
+                    print("DEBUG: No pressure data files found")
                     return
             
-            print("DEBUG: No pressure data found")
+            pressure_df = pd.read_csv(subject_files[0])
+            print(f"DEBUG: Loaded pressure data: {len(pressure_df)} rows")
+            print(f"DEBUG: Pressure columns: {list(pressure_df.columns)}")
             
-        except Exception as e:
-            print(f"DEBUG: Error loading pressure data: {e}")
-            self.pressure_data = None
-    
-    def sync_data(self):
-        """Synchronize diameter and pressure data with frame numbers"""
-        try:
-            if self.diameter_data is None:
-                print("DEBUG: No diameter data to sync")
+            # Load timestamp mapping file
+            timestamp_file = os.path.join(data_uji_folder, "timestamps.csv")
+            if not os.path.exists(timestamp_file):
+                print("DEBUG: No timestamps.csv found - using fallback interpolation")
+                self._fallback_pressure_mapping(subject_name)
                 return
             
-            # Start with diameter data
-            self.synced_data = self.diameter_data.copy()
-            print(f"DEBUG: Starting sync with {len(self.synced_data)} diameter records")
+            timestamp_df = pd.read_csv(timestamp_file)
+            print(f"DEBUG: Loaded timestamp data: {len(timestamp_df)} rows")
             
-            # Determine frame column
-            frame_columns = ['Frame', 'frame', 'frame_number', 'frame_index']
-            frame_col = None
+            # Parse and synchronize timestamps
+            success = self._synchronize_pressure_with_image_timestamps(pressure_df, timestamp_df)
             
-            for col in frame_columns:
-                if col in self.synced_data.columns:
-                    frame_col = col
-                    break
-            
-            if frame_col:
-                # Use existing frame column
-                if frame_col != 'frame':
-                    self.synced_data['frame'] = self.synced_data[frame_col]
-                    print(f"DEBUG: Used '{frame_col}' column as frame index")
+            if not success:
+                print("DEBUG: Timestamp synchronization failed - using fallback")
+                self._fallback_pressure_mapping(subject_name)
                 
-                # Keep original frame numbers for reference
-                self.synced_data['original_frame'] = self.synced_data['frame']
-                
-                # Validate frame range
-                frame_min = self.synced_data['frame'].min()
-                frame_max = self.synced_data['frame'].max()
-                print(f"DEBUG: Original frame range: {frame_min} to {frame_max}")
-                
-                # Ensure frames are within video bounds
-                if self.total_frames > 0:
-                    print(f"DEBUG: Video has {self.total_frames} frames")
-                    valid_frames = (self.synced_data['frame'] >= 0) & (self.synced_data['frame'] < self.total_frames)
-                    
-                    if valid_frames.any():
-                        self.synced_data = self.synced_data[valid_frames]
-                        print(f"DEBUG: Keeping original frame numbers (within video range)")
-                    else:
-                        print("DEBUG: No frames within video range, adjusting...")
-                        # Adjust frame numbers to fit video range
-                        self.synced_data['frame'] = np.linspace(0, self.total_frames-1, len(self.synced_data), dtype=int)
-                
-                frame_min = self.synced_data['frame'].min()
-                frame_max = self.synced_data['frame'].max()
-                print(f"DEBUG: Final frame range: {frame_min} to {frame_max}")
-                
-            else:
-                # Create frame numbers based on data length
-                print("DEBUG: No frame column found, creating frame sequence")
-                self.synced_data['frame'] = range(len(self.synced_data))
-                self.synced_data['original_frame'] = self.synced_data['frame']
-            
-            print(f"DEBUG: Synced data complete - {len(self.synced_data)} rows")
-            print(f"DEBUG: Synced columns: {list(self.synced_data.columns)}")
-            
-            # Show sample data for debugging
-            if len(self.synced_data) > 0:
-                print("DEBUG: Sample synced data:")
-                for i in range(min(3, len(self.synced_data))):
-                    row = self.synced_data.iloc[i]
-                    frame_num = row.get('frame', 'N/A')
-                    diameter = row.get('diameter', 'N/A')
-                    pressure = row.get('pressure', 'N/A')
-                    print(f"  Frame {frame_num}: Diameter={diameter}, Pressure={pressure}")
-            
         except Exception as e:
-            print(f"DEBUG: Error syncing data: {e}")
+            print(f"DEBUG: Error in timestamp-based synchronization: {e}")
             import traceback
             traceback.print_exc()
+            # Fallback to interpolation method
+            self._fallback_pressure_mapping(subject_name)
+    
+    def _synchronize_pressure_with_image_timestamps(self, pressure_df, timestamp_df):
+        """Synchronize pressure data with image timestamps using relative timing"""
+        try:
+            print("DEBUG: Starting improved timestamp synchronization...")
+            
+            # Parse pressure timestamps (format: HH-MM-SS-mmm)
+            pressure_times_abs = []
+            pressure_values = []
+            
+            for _, row in pressure_df.iterrows():
+                timestamp_str = str(row.iloc[0])  # First column is timestamp
+                pressure_val = float(row.iloc[1])  # Second column is sensor value
+                
+                try:
+                    # Parse HH-MM-SS-mmm format
+                    parts = timestamp_str.split('-')
+                    if len(parts) == 4:
+                        hours = int(parts[0])
+                        minutes = int(parts[1])
+                        seconds = int(parts[2])
+                        milliseconds = int(parts[3])
+                        
+                        # Convert to total seconds (absolute time)
+                        total_seconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000.0
+                        pressure_times_abs.append(total_seconds)
+                        pressure_values.append(pressure_val)
+                except:
+                    continue
+            
+            print(f"DEBUG: Parsed {len(pressure_times_abs)} pressure timestamps")
+            if len(pressure_times_abs) == 0:
+                return False
+            
+            # Parse image timestamps (format: HH:MM:SS.mmm)
+            image_times_abs = []
+            image_frames = []
+            
+            for _, row in timestamp_df.iterrows():
+                if 'Frame Number' in timestamp_df.columns and 'Timestamp' in timestamp_df.columns:
+                    frame_num = row['Frame Number']
+                    timestamp_str = str(row['Timestamp'])
+                    
+                    try:
+                        # Parse HH:MM:SS.mmm format
+                        parts = timestamp_str.split(':')
+                        if len(parts) == 3:
+                            hours = int(parts[0])
+                            minutes = int(parts[1])
+                            sec_parts = parts[2].split('.')
+                            seconds = int(sec_parts[0])
+                            milliseconds = int(sec_parts[1]) if len(sec_parts) > 1 else 0
+                            
+                            # Convert to total seconds (absolute time)
+                            total_seconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000.0
+                            image_times_abs.append(total_seconds)
+                            image_frames.append(frame_num)
+                    except:
+                        continue
+            
+            print(f"DEBUG: Parsed {len(image_times_abs)} image timestamps")
+            if len(image_times_abs) == 0:
+                return False
+            
+            # Convert to numpy arrays for easier manipulation
+            pressure_times_abs = np.array(pressure_times_abs)
+            pressure_values = np.array(pressure_values)
+            image_times_abs = np.array(image_times_abs)
+            image_frames = np.array(image_frames)
+            
+            # Calculate time ranges and overlap
+            pressure_start = pressure_times_abs.min()
+            pressure_end = pressure_times_abs.max()
+            image_start = image_times_abs.min()
+            image_end = image_times_abs.max()
+            
+            print(f"DEBUG: Pressure time range: {pressure_start:.3f} - {pressure_end:.3f} ({pressure_end-pressure_start:.3f}s)")
+            print(f"DEBUG: Image time range: {image_start:.3f} - {image_end:.3f} ({image_end-image_start:.3f}s)")
+            print(f"DEBUG: Time offset: {image_start - pressure_start:.3f}s")
+            
+            # Find overlap range
+            overlap_start = max(pressure_start, image_start)
+            overlap_end = min(pressure_end, image_end)
+            
+            print(f"DEBUG: Overlap range: {overlap_start:.3f} - {overlap_end:.3f} ({overlap_end-overlap_start:.3f}s)")
+            
+            if overlap_end <= overlap_start:
+                print("DEBUG: No time overlap - using interpolation/extrapolation")
+                return self._interpolate_pressure_for_all_frames(pressure_times_abs, pressure_values, 
+                                                               image_times_abs, image_frames)
+            
+            # Method 1: Try direct timestamp matching for overlapping region
+            synced_data_method1 = []
+            
+            for i, (img_time, frame_num) in enumerate(zip(image_times_abs, image_frames)):
+                if overlap_start <= img_time <= overlap_end:
+                    # Find closest pressure measurement
+                    time_diffs = np.abs(pressure_times_abs - img_time)
+                    closest_idx = np.argmin(time_diffs)
+                    min_time_diff = time_diffs[closest_idx]
+                    
+                    # Only use if time difference is reasonable (< 0.1 second)
+                    if min_time_diff < 0.1:
+                        synced_data_method1.append((frame_num, pressure_values[closest_idx]))
+            
+            print(f"DEBUG: Method 1 (direct matching): {len(synced_data_method1)} synchronized points")
+            
+            # Method 2: Use interpolation for better coverage
+            synced_data_method2 = self._interpolate_pressure_for_frames(pressure_times_abs, pressure_values,
+                                                                      image_times_abs, image_frames)
+            
+            # Choose the best method
+            if len(synced_data_method1) > len(image_frames) * 0.5:  # If we have good coverage
+                print("DEBUG: Using direct timestamp matching")
+                synced_pressure_data = synced_data_method1
+            else:
+                print("DEBUG: Using interpolation method for better coverage")
+                synced_pressure_data = synced_data_method2
+            
+            # Apply to diameter data
+            if len(synced_pressure_data) > 0 and self.diameter_data is not None:
+                pressure_map = {int(frame): pressure for frame, pressure in synced_pressure_data}
+                
+                # Apply to diameter data with intelligent fallback
+                pressure_column = []
+                mapped_count = 0
+                
+                for _, row in self.diameter_data.iterrows():
+                    frame_num = int(row['Frame'])
+                    
+                    if frame_num in pressure_map:
+                        pressure_val = pressure_map[frame_num]
+                        mapped_count += 1
+                    else:
+                        # Intelligent fallback: interpolate from nearby frames
+                        pressure_val = self._get_interpolated_pressure(frame_num, pressure_map)
+                    
+                    pressure_column.append(pressure_val)
+                
+                self.diameter_data['pressure'] = pressure_column
+                
+                print(f"DEBUG: Applied pressure to {mapped_count} diameter measurements (direct)")
+                print(f"DEBUG: Total diameter measurements: {len(pressure_column)}")
+                
+                # Show sample synchronized data
+                print("DEBUG: Sample synchronized data:")
+                sample_count = min(5, len(synced_pressure_data))
+                for i in range(sample_count):
+                    frame, pressure = synced_pressure_data[i]
+                    print(f"  Frame {frame}: Pressure={pressure:.3f} N")
+                
+                return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"DEBUG: Error in improved pressure-image synchronization: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def _interpolate_pressure_for_frames(self, pressure_times, pressure_values, image_times, image_frames):
+        """Interpolate pressure values for image frames"""
+        try:
+            synced_data = []
+            
+            # Use numpy interpolation for smooth pressure mapping
+            for img_time, frame_num in zip(image_times, image_frames):
+                # Interpolate pressure at this time point
+                if img_time >= pressure_times.min() and img_time <= pressure_times.max():
+                    pressure_val = np.interp(img_time, pressure_times, pressure_values)
+                    synced_data.append((frame_num, pressure_val))
+                else:
+                    # Extrapolate using nearest value
+                    if img_time < pressure_times.min():
+                        pressure_val = pressure_values[0]  # Use first value
+                    else:
+                        pressure_val = pressure_values[-1]  # Use last value
+                    synced_data.append((frame_num, pressure_val))
+            
+            print(f"DEBUG: Interpolation method: {len(synced_data)} points")
+            return synced_data
+            
+        except Exception as e:
+            print(f"DEBUG: Error in pressure interpolation: {e}")
+            return []
+    
+    def _interpolate_pressure_for_all_frames(self, pressure_times, pressure_values, image_times, image_frames):
+        """Fallback interpolation when no overlap exists"""
+        try:
+            print("DEBUG: Using fallback interpolation (no overlap)")
+            
+            # Scale pressure timeline to match image timeline
+            pressure_duration = pressure_times.max() - pressure_times.min()
+            image_duration = image_times.max() - image_times.min()
+            
+            if pressure_duration > 0 and image_duration > 0:
+                # Time-scale the pressure data to match image duration
+                scaled_pressure_times = pressure_times.min() + (pressure_times - pressure_times.min()) * (image_duration / pressure_duration)
+                
+                # Shift to align with image start time
+                shifted_pressure_times = scaled_pressure_times - scaled_pressure_times.min() + image_times.min()
+                
+                # Interpolate
+                synced_data = []
+                for img_time, frame_num in zip(image_times, image_frames):
+                    pressure_val = np.interp(img_time, shifted_pressure_times, pressure_values)
+                    synced_data.append((frame_num, pressure_val))
+                
+                print(f"DEBUG: Fallback interpolation: {len(synced_data)} points")
+                return synced_data
+            
+            return []
+            
+        except Exception as e:
+            print(f"DEBUG: Error in fallback interpolation: {e}")
+            return []
+    
+    def _get_interpolated_pressure(self, target_frame, pressure_map):
+        """Get interpolated pressure for a frame not in the map"""
+        try:
+            if not pressure_map:
+                return 0.0
+            
+            frames = sorted(pressure_map.keys())
+            
+            # If target frame is outside range, use nearest value
+            if target_frame <= frames[0]:
+                return pressure_map[frames[0]]
+            if target_frame >= frames[-1]:
+                return pressure_map[frames[-1]]
+            
+            # Find surrounding frames for interpolation
+            lower_frame = None
+            upper_frame = None
+            
+            for frame in frames:
+                if frame <= target_frame:
+                    lower_frame = frame
+                elif frame > target_frame and upper_frame is None:
+                    upper_frame = frame
+                    break
+            
+            if lower_frame is not None and upper_frame is not None:
+                # Linear interpolation
+                lower_pressure = pressure_map[lower_frame]
+                upper_pressure = pressure_map[upper_frame]
+                ratio = (target_frame - lower_frame) / (upper_frame - lower_frame)
+                return lower_pressure + ratio * (upper_pressure - lower_pressure)
+            
+            # Fallback to nearest available value
+            return pressure_map[frames[0]] if frames else 0.0
+            
+        except Exception as e:
+            print(f"DEBUG: Error in pressure interpolation for frame {target_frame}: {e}")
+            return 0.0
     
     def on_baseline_frame_change(self, value):
         """Handle baseline frame slider change"""
@@ -899,15 +1099,14 @@ class ElasticityCalculator:
                 self.d_baseline_var.set(f"{self.baseline_diameter:.2f} mm" if self.baseline_diameter > 0 else "-- mm")
                 self.d_compressed_var.set(f"{self.compressed_diameter:.2f} mm" if self.compressed_diameter > 0 else "-- mm")
                 self.p_baseline_var.set(f"{self.baseline_pressure:.2f} N" if self.baseline_pressure > 0 else "-- N")
-                self.p_compressed_var.set(f"{self.compressed_pressure:.2f} N" if self.compressed_pressure > 0 else "-- N")
-            
+                self.p_compressed_var.set(f"{self.compressed_pressure:.2f} N" if self.compressed_pressure > 0 else "-- N")            
         except Exception as e:
             print(f"DEBUG: Error updating frame info: {e}")
             self.baseline_info_label.configure(text="Baseline: Diameter: -- | Pressure: -- N")
             self.compressed_info_label.configure(text="Compressed: Diameter: -- | Pressure: -- N")
     
     def update_plot(self):
-        """Update the plot with dual vertical lines"""
+        """Update the plot with dual vertical lines using timestamp as X-axis"""
         # Clear the plot completely
         self.ax.clear()
         
@@ -932,6 +1131,16 @@ class ElasticityCalculator:
             # Debug: Print available columns
             print(f"DEBUG: Available columns for plotting: {list(self.synced_data.columns)}")
             
+            # Determine X-axis data (prefer timestamp over frame)
+            use_timestamp = 'time_seconds' in self.synced_data.columns and self.synced_data['time_seconds'].notna().any()
+            x_data_column = 'time_seconds' if use_timestamp else 'frame'
+            x_label = 'Time (seconds)' if use_timestamp else 'Frame Number'
+            
+            if use_timestamp:
+                print("DEBUG: Using timestamp as X-axis")
+            else:
+                print("DEBUG: Using frame number as X-axis (timestamp not available)")
+            
             # Plot diameter data
             diameter_plotted = False
             if 'diameter' in self.synced_data.columns:
@@ -941,23 +1150,29 @@ class ElasticityCalculator:
                 print(f"DEBUG: Found {valid_diameter.sum()} valid diameter values out of {len(diameter_values)}")
                 
                 if valid_diameter.any():
-                    frames = self.synced_data.loc[valid_diameter, 'frame']
+                    x_values = self.synced_data.loc[valid_diameter, x_data_column]
                     diameters = diameter_values[valid_diameter]
                     
-                    print(f"DEBUG: Plotting diameter - Frame range: {frames.min():.0f}-{frames.max():.0f}, Diameter range: {diameters.min():.2f}-{diameters.max():.2f}")
-                    
-                    # Try to find proper column name for label
-                    col_name = 'Diameter (mm)'
-                    if 'Diameter (mm)' in self.synced_data.columns:
+                    # Remove rows where X values are NaN
+                    valid_x = ~pd.to_numeric(x_values, errors='coerce').isna()
+                    if valid_x.any():
+                        x_values = x_values[valid_x]
+                        diameters = diameters[valid_x.values]
+                        
+                        print(f"DEBUG: Plotting diameter - X range: {x_values.min():.2f}-{x_values.max():.2f}, Diameter range: {diameters.min():.2f}-{diameters.max():.2f}")
+                        
+                        # Try to find proper column name for label
                         col_name = 'Diameter (mm)'
-                    elif 'Diameter' in self.synced_data.columns:
-                        col_name = 'Diameter'
-                    
-                    self.ax.plot(frames, diameters, 'b-', linewidth=2, label=f'{col_name}', alpha=0.8)
-                    self.ax.set_ylabel(f'{col_name}', color='b')
-                    self.ax.tick_params(axis='y', labelcolor='b')
-                    diameter_plotted = True
-                    print(f"DEBUG: Successfully plotted with {col_name}")
+                        if 'Diameter (mm)' in self.synced_data.columns:
+                            col_name = 'Diameter (mm)'
+                        elif 'Diameter' in self.synced_data.columns:
+                            col_name = 'Diameter'
+                        
+                        self.ax.plot(x_values, diameters, 'b-', linewidth=2, label=f'{col_name}', alpha=0.8)
+                        self.ax.set_ylabel(f'{col_name}', color='b')
+                        self.ax.tick_params(axis='y', labelcolor='b')
+                        diameter_plotted = True
+                        print(f"DEBUG: Successfully plotted with {col_name}")
             else:
                 print(f"DEBUG: Available columns: {list(self.synced_data.columns)}")
             
@@ -976,53 +1191,66 @@ class ElasticityCalculator:
                     else:
                         ax2 = self.ax
                     
-                    frames = self.synced_data.loc[valid_pressure, 'frame']
+                    x_values = self.synced_data.loc[valid_pressure, x_data_column]
                     pressures = pressure_values[valid_pressure]
                     
-                    print(f"DEBUG: Plotting pressure - Frame range: {frames.min():.0f}-{frames.max():.0f}, Pressure range: {pressures.min():.2f}-{pressures.max():.2f}")
-                    ax2.plot(frames, pressures, 'g--', linewidth=2, label='Pressure', alpha=0.8)
-                    ax2.set_ylabel('Pressure (N)', color='g')
-                    ax2.tick_params(axis='y', labelcolor='g')
-                    pressure_plotted = True
-              # If no data was plotted, show sample data or message
+                    # Remove rows where X values are NaN
+                    valid_x = ~pd.to_numeric(x_values, errors='coerce').isna()
+                    if valid_x.any():
+                        x_values = x_values[valid_x]
+                        pressures = pressures[valid_x.values]
+                        
+                        print(f"DEBUG: Plotting pressure - X range: {x_values.min():.2f}-{x_values.max():.2f}, Pressure range: {pressures.min():.2f}-{pressures.max():.2f}")
+                        ax2.plot(x_values, pressures, 'g--', linewidth=2, label='Pressure', alpha=0.8)
+                        ax2.set_ylabel('Pressure (N)', color='g')
+                        ax2.tick_params(axis='y', labelcolor='g')
+                        pressure_plotted = True
+            
+            # If no data was plotted, show sample data or message
             if not diameter_plotted and not pressure_plotted:
                 # Create sample data for visualization
-                frames = self.synced_data['frame']
-                self.ax.plot(frames, [50] * len(frames), 'r--', alpha=0.3, label='No data - sample line')
+                x_values = self.synced_data[x_data_column]
+                self.ax.plot(x_values, [50] * len(x_values), 'r--', alpha=0.3, label='No data - sample line')
                 self.ax.text(0.5, 0.5, 'No valid data to plot\nCheck data files and columns', 
                             horizontalalignment='center', verticalalignment='center', 
                             transform=self.ax.transAxes, fontsize=10, color='red')
             
-            # Add vertical lines for selected frames
+            # Add vertical lines for selected frames (convert frame to timestamp if needed)
             if hasattr(self, 'baseline_frame_index'):
-                self.vertical_line1 = self.ax.axvline(x=self.baseline_frame_index, color='purple', 
-                                                     linestyle='-', linewidth=2, alpha=0.7, 
-                                                     label=f'Baseline Frame {self.baseline_frame_index}')
+                baseline_x = self.get_x_value_for_frame(self.baseline_frame_index, use_timestamp)
+                if baseline_x is not None:
+                    self.vertical_line1 = self.ax.axvline(x=baseline_x, color='purple', 
+                                                         linestyle='-', linewidth=2, alpha=0.7, 
+                                                         label=f'Baseline Frame {self.baseline_frame_index}')
             
             if hasattr(self, 'compressed_frame_index'):
-                self.vertical_line2 = self.ax.axvline(x=self.compressed_frame_index, color='red', 
-                                                     linestyle='-', linewidth=2, alpha=0.7, 
-                                                     label=f'Compressed Frame {self.compressed_frame_index}')
+                compressed_x = self.get_x_value_for_frame(self.compressed_frame_index, use_timestamp)
+                if compressed_x is not None:
+                    self.vertical_line2 = self.ax.axvline(x=compressed_x, color='red', 
+                                                         linestyle='-', linewidth=2, alpha=0.7, 
+                                                         label=f'Compressed Frame {self.compressed_frame_index}')
             
             # Set axis limits - Always start from 0 and show all data
             if not self.synced_data.empty:
-                frame_min = 0  # Always start from 0
-                frame_max = self.synced_data['frame'].max()
-                
-                # Ensure we show the full range with some padding
-                total_range = frame_max - frame_min
-                padding = max(5, total_range * 0.02)  # 2% padding or minimum 5 frames
-                
-                self.ax.set_xlim(frame_min, frame_max + padding)
-                
-                # Set y-axis limits for better visualization
-                if diameter_plotted:
-                    diameter_values = pd.to_numeric(self.synced_data['diameter'], errors='coerce')
-                    valid_diameters = diameter_values.dropna()
-                    if len(valid_diameters) > 0:
-                        y_min = valid_diameters.min() * 0.95
-                        y_max = valid_diameters.max() * 1.05
-                        self.ax.set_ylim(y_min, y_max)
+                x_values = pd.to_numeric(self.synced_data[x_data_column], errors='coerce').dropna()
+                if len(x_values) > 0:
+                    x_min = x_values.min()
+                    x_max = x_values.max()
+                    
+                    # Add some padding
+                    total_range = x_max - x_min
+                    padding = max(0.1 if use_timestamp else 5, total_range * 0.02)  # 2% padding
+                    
+                    self.ax.set_xlim(x_min - padding, x_max + padding)
+                    
+                    # Set y-axis limits for better visualization
+                    if diameter_plotted:
+                        diameter_values = pd.to_numeric(self.synced_data['diameter'], errors='coerce')
+                        valid_diameters = diameter_values.dropna()
+                        if len(valid_diameters) > 0:
+                            y_min = valid_diameters.min() * 0.95
+                            y_max = valid_diameters.max() * 1.05
+                            self.ax.set_ylim(y_min, y_max)
             
         except Exception as e:
             print(f"DEBUG: Error in update_plot: {e}")
@@ -1031,8 +1259,9 @@ class ElasticityCalculator:
                         transform=self.ax.transAxes, fontsize=10, color='red')
         
         # Set labels and title
-        self.ax.set_xlabel('Frame Number')
-        self.ax.set_title('Diameter and Pressure vs Frame - Elasticity Analysis')
+        self.ax.set_xlabel(x_label)
+        title = 'Diameter and Pressure vs Time - Elasticity Analysis' if use_timestamp else 'Diameter and Pressure vs Frame - Elasticity Analysis'
+        self.ax.set_title(title)
         self.ax.grid(True, alpha=0.3)
         self.ax.legend(loc='upper right')
         
@@ -1311,16 +1540,325 @@ For detailed parameter explanations and clinical significance, refer to the rese
         text_widget.pack(fill=tk.BOTH, expand=True)
         text_widget.insert(1.0, help_text)
         text_widget.configure(state=tk.DISABLED)
-        
-        # Add scrollbar
+          # Add scrollbar
         scrollbar = ttk.Scrollbar(help_window, orient=tk.VERTICAL, command=text_widget.yview)
         text_widget.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
+    
+    def _synchronize_with_timestamps(self, timestamp_df, pressure_df):
+        """Synchronize diameter and pressure data using timestamp matching"""
+        try:
+            if self.diameter_data is None or timestamp_df is None or pressure_df is None:
+                return False
+            
+            # Standardize timestamp formats
+            timestamp_df = self._standardize_timestamps(timestamp_df.copy())
+            pressure_df = self._standardize_timestamps(pressure_df.copy())
+            
+            if timestamp_df is None or pressure_df is None:
+                return False
+            
+            # Get frame numbers from diameter data that we need to match
+            diameter_frames = self.diameter_data['Frame'].values
+            print(f"DEBUG: Need to match {len(diameter_frames)} diameter frames")
+            
+            # Create mapping from diameter frames to timestamps via timestamp_df
+            frame_to_timestamp = {}
+            for _, row in timestamp_df.iterrows():
+                frame_num = row.get('Frame Number', row.get('frame', None))
+                timestamp = row.get('timestamp_normalized', None)
+                if frame_num is not None and timestamp is not None:
+                    frame_to_timestamp[int(frame_num)] = timestamp
+            
+            print(f"DEBUG: Created frame-to-timestamp mapping for {len(frame_to_timestamp)} frames")
+            
+            # Map pressure values to diameter frames
+            pressure_values = []
+            matched_frames = 0
+            
+            for frame in diameter_frames:
+                frame_int = int(frame)
+                if frame_int in frame_to_timestamp:
+                    target_timestamp = frame_to_timestamp[frame_int]
+                    
+                    # Find closest pressure measurement
+                    pressure_timestamps = pressure_df['timestamp_normalized'].values
+                    closest_idx = np.argmin(np.abs(pressure_timestamps - target_timestamp))
+                    pressure_value = pressure_df.iloc[closest_idx]['Sensor Value']
+                    pressure_values.append(pressure_value)
+                    matched_frames += 1
+                else:
+                    # Use interpolation for missing frames
+                    pressure_values.append(0.0)  # Default value
+            
+            # Add pressure column to diameter data
+            self.diameter_data['pressure'] = pressure_values
+            print(f"DEBUG: Successfully matched {matched_frames}/{len(diameter_frames)} frames with pressure data")
+            
+            # Show sample synchronized data
+            print("DEBUG: Sample synchronized data:")
+            for i in range(min(5, len(diameter_frames))):
+                frame_num = diameter_frames[i]
+                diameter = self.diameter_data.iloc[i]['Diameter (mm)']
+                pressure = pressure_values[i]
+                timestamp = frame_to_timestamp.get(int(frame_num), 'N/A')
+                print(f"  Frame {frame_num}: Diameter={diameter:.3f}mm, Pressure={pressure:.3f}N, Timestamp={timestamp}")
+            
+            return True
+            
+        except Exception as e:
+            print(f"DEBUG: Error in timestamp synchronization: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def _standardize_timestamps(self, df):
+        """Convert timestamp strings to normalized format for comparison"""
+        try:
+            timestamp_col = None
+            
+            # Find timestamp column
+            for col in ['Timestamp', 'Timestamp (s)', 'timestamp']:
+                if col in df.columns:
+                    timestamp_col = col
+                    break
+            
+            if timestamp_col is None:
+                print("DEBUG: No timestamp column found")
+                return None
+            
+            # Convert timestamp strings to seconds since start
+            timestamps = df[timestamp_col].astype(str)
+            normalized_timestamps = []
+            
+            for ts in timestamps:
+                try:
+                    # Parse format like "12:31:52.745" or "12-31-52-745"
+                    if ':' in ts:
+                        # Format: HH:MM:SS.mmm
+                        parts = ts.split(':')
+                        hours = int(parts[0])
+                        minutes = int(parts[1])
+                        sec_parts = parts[2].split('.')
+                        seconds = int(sec_parts[0])
+                        milliseconds = int(sec_parts[1]) if len(sec_parts) > 1 else 0
+                    else:
+                        # Format: HH-MM-SS-mmm
+                        parts = ts.split('-')
+                        hours = int(parts[0])
+                        minutes = int(parts[1])
+                        seconds = int(parts[2])
+                        milliseconds = int(parts[3]) if len(parts) > 3 else 0
+                    
+                    # Convert to total milliseconds
+                    total_ms = (hours * 3600 + minutes * 60 + seconds) * 1000 + milliseconds
+                    normalized_timestamps.append(total_ms)
+                    
+                except (ValueError, IndexError) as e:
+                    print(f"DEBUG: Could not parse timestamp '{ts}': {e}")
+                    normalized_timestamps.append(0)
+            
+            df['timestamp_normalized'] = normalized_timestamps
+            
+            # Normalize to start from 0
+            if normalized_timestamps:
+                min_timestamp = min(normalized_timestamps)
+                df['timestamp_normalized'] = df['timestamp_normalized'] - min_timestamp
+            
+            print(f"DEBUG: Normalized {len(normalized_timestamps)} timestamps")
+            return df
+            
+        except Exception as e:
+            print(f"DEBUG: Error standardizing timestamps: {e}")
+            return None
+    
+    def _fallback_pressure_mapping(self, subject_name):
+        """Fallback method using interpolation when timestamp sync fails"""
+        try:
+            print("DEBUG: Using fallback interpolation method")
+            
+            # Look for pressure data in data_uji folder
+            data_uji_folder = os.path.join("data_uji", subject_name)
+            subject_files = glob.glob(os.path.join(data_uji_folder, f"{subject_name.lower()}.csv"))
+            if not subject_files:
+                subject_files = glob.glob(os.path.join(data_uji_folder, "subject*.csv"))
+                if not subject_files:
+                    return
+            
+            # Load pressure data
+            pressure_df = pd.read_csv(subject_files[0])
+            pressure_values = pressure_df['Sensor Value'].values
+            
+            # If we have diameter data with frame numbers, interpolate pressure to match
+            if self.diameter_data is not None and 'Frame' in self.diameter_data.columns:
+                frame_numbers = self.diameter_data['Frame'].values
+                
+                # Interpolate pressure values to match frame numbers
+                if len(pressure_values) > 0:
+                    # Create mapping from frame numbers to pressure indices
+                    pressure_indices = np.linspace(0, len(pressure_values)-1, len(frame_numbers), dtype=int)
+                    mapped_pressure = pressure_values[pressure_indices]
+                      # Add pressure column to diameter data
+                    self.diameter_data['pressure'] = mapped_pressure
+                    print(f"DEBUG: Fallback mapping - {len(mapped_pressure)} pressure values interpolated")
+        
+        except Exception as e:
+            print(f"DEBUG: Error in fallback pressure mapping: {e}")
+    
+    def sync_data(self):
+        """Synchronize and prepare data for analysis with timestamp support"""
+        try:
+            if self.diameter_data is None:
+                print("DEBUG: No diameter data to sync")
+                return
+            
+            # Copy diameter data to synced_data
+            self.synced_data = self.diameter_data.copy()
+            print(f"DEBUG: Synced data prepared - {len(self.synced_data)} rows")
+            
+            # Ensure frame column exists
+            if 'Frame' in self.synced_data.columns and 'frame' not in self.synced_data.columns:
+                self.synced_data['frame'] = self.synced_data['Frame']
+            
+            # Load timestamp data if available
+            subject_name = self.subject_var.get().split(" [")[0] if self.subject_var.get() else ""
+            if subject_name:
+                self.load_timestamp_data(subject_name)
+            
+            # Validate frame range against video bounds
+            if self.total_frames > 0:
+                frame_min = self.synced_data['frame'].min()
+                frame_max = self.synced_data['frame'].max()
+                print(f"DEBUG: Frame range: {frame_min} to {frame_max} (video has {self.total_frames} frames)")
+                
+                # Filter frames within video bounds
+                valid_frames = (self.synced_data['frame'] >= 0) & (self.synced_data['frame'] < self.total_frames)
+                if valid_frames.any():
+                    self.synced_data = self.synced_data[valid_frames]
+                    print(f"DEBUG: Filtered to {len(self.synced_data)} frames within video bounds")
+            
+            # Show sample of synced data
+            if len(self.synced_data) > 0:
+                print("DEBUG: Sample synced data:")
+                for i in range(min(3, len(self.synced_data))):
+                    row = self.synced_data.iloc[i]
+                    frame_num = row.get('frame', 'N/A')
+                    diameter = row.get('diameter', 'N/A')
+                    pressure = row.get('pressure', 'N/A')
+                    timestamp = row.get('timestamp', 'N/A')
+                    print(f"  Frame {frame_num}: Diameter={diameter}, Pressure={pressure}, Time={timestamp}")
+            
+        except Exception as e:
+            print(f"DEBUG: Error syncing data: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def load_timestamp_data(self, subject_name):
+        """Load timestamp data and merge with synced data"""
+        try:
+            timestamp_path = os.path.join("data_uji", subject_name, "timestamps.csv")
+            if os.path.exists(timestamp_path):
+                timestamp_df = pd.read_csv(timestamp_path)
+                print(f"DEBUG: Loaded timestamps: {len(timestamp_df)} rows")
+                
+                # Standardize column names
+                if 'Frame Number' in timestamp_df.columns:
+                    timestamp_df['frame'] = timestamp_df['Frame Number']
+                if 'Timestamp' in timestamp_df.columns:
+                    timestamp_df['timestamp'] = timestamp_df['Timestamp']
+                
+                # Convert timestamp to seconds from start
+                if 'timestamp' in timestamp_df.columns:
+                    timestamp_df['time_seconds'] = self.convert_timestamp_to_seconds(timestamp_df['timestamp'])
+                
+                # Merge with synced data
+                if 'frame' in self.synced_data.columns and 'frame' in timestamp_df.columns:
+                    original_count = len(self.synced_data)
+                    self.synced_data = pd.merge(
+                        self.synced_data, 
+                        timestamp_df[['frame', 'timestamp', 'time_seconds']], 
+                        on='frame', 
+                        how='left'
+                    )
+                    print(f"DEBUG: Merged timestamps - {original_count} -> {len(self.synced_data)} rows")
+                    
+                    # Show sample with timestamps
+                    if len(self.synced_data) > 0 and 'timestamp' in self.synced_data.columns:
+                        valid_timestamps = self.synced_data['timestamp'].notna().sum()
+                        print(f"DEBUG: {valid_timestamps} rows have valid timestamps")
+                        
+        except Exception as e:
+            print(f"DEBUG: Error loading timestamp data: {e}")
+    
+    def convert_timestamp_to_seconds(self, timestamps):
+        """Convert HH:MM:SS.mmm format to seconds from start"""
+        try:
+            time_seconds = []
+            start_time = None
+            
+            for ts in timestamps:
+                if pd.isna(ts):
+                    time_seconds.append(np.nan)
+                    continue
+                    
+                # Parse time string (HH:MM:SS.mmm)
+                try:
+                    time_parts = str(ts).split(':')
+                    if len(time_parts) == 3:
+                        hours = int(time_parts[0])
+                        minutes = int(time_parts[1])
+                        seconds_parts = time_parts[2].split('.')
+                        seconds = int(seconds_parts[0])
+                        milliseconds = int(seconds_parts[1]) if len(seconds_parts) > 1 else 0
+                        
+                        total_seconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000.0
+                        
+                        if start_time is None:
+                            start_time = total_seconds
+                        
+                        time_seconds.append(total_seconds - start_time)
+                    else:
+                        time_seconds.append(np.nan)
+                except:
+                    time_seconds.append(np.nan)
+            
+            return time_seconds
+            
+        except Exception as e:
+            print(f"DEBUG: Error converting timestamps: {e}")
+            return [np.nan] * len(timestamps)
+    
+    def get_x_value_for_frame(self, frame_index, use_timestamp=False):
+        """Get X-axis value for a given frame (timestamp or frame number)"""
+        try:
+            if self.synced_data is None or self.synced_data.empty:
+                return None
+            
+            if use_timestamp and 'time_seconds' in self.synced_data.columns:
+                # Find the closest matching frame in synced data
+                frame_data = self.synced_data[self.synced_data['frame'] == frame_index]
+                if not frame_data.empty:
+                    time_value = frame_data['time_seconds'].iloc[0]
+                    if not pd.isna(time_value):
+                        return time_value
+                
+                # If exact frame not found, interpolate
+                frames = self.synced_data['frame'].values
+                times = self.synced_data['time_seconds'].values
+                if len(frames) > 1 and frame_index >= frames.min() and frame_index <= frames.max():
+                    return np.interp(frame_index, frames, times)
+            
+            # Default to frame number
+            return frame_index
+            
+        except Exception as e:
+            print(f"DEBUG: Error getting X value for frame {frame_index}: {e}")
+            return frame_index
 
 def main():
     """Main function to run the Elasticity Calculator"""
     root = tk.Tk()
+   
     app = ElasticityCalculator(root)
     root.mainloop()
 

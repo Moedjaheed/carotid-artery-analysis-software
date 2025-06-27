@@ -249,8 +249,8 @@ if __name__ == "__main__":
     
     success, missing = check_requirements()
     if success:
-        print("✅ All requirements met!")
+        print("[SUCCESS] All requirements met!")
     else:
-        print("❌ Missing requirements:")
+        print("[ERROR] Missing requirements:")
         for item in missing:
             print(f"   - {item}")

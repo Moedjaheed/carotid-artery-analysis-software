@@ -113,11 +113,11 @@ measurements using advanced AI segmentation and data visualization.
         actions_grid = ttk.Frame(actions_frame)
         actions_grid.pack(fill=tk.X)
           # Row 1
-        ttk.Button(actions_grid, text="🎯 Enhanced Inference", 
+        ttk.Button(actions_grid, text="[TARGET] Enhanced Inference", 
                   command=self.run_enhanced_inference, width=20).grid(row=0, column=0, padx=5, pady=5)
-        ttk.Button(actions_grid, text="📊 Data Viewer", 
+        ttk.Button(actions_grid, text="Data Viewer", 
                   command=self.run_data_viewer, width=20).grid(row=0, column=1, padx=5, pady=5)
-        ttk.Button(actions_grid, text="📈 Analytics", 
+        ttk.Button(actions_grid, text="[CHART] Analytics", 
                   command=self.run_advanced_analytics, width=20).grid(row=0, column=2, padx=5, pady=5)
         
         # Row 2 - New Frame Comparison Viewer
@@ -132,7 +132,7 @@ measurements using advanced AI segmentation and data visualization.
     def create_inference_tab(self):
         """Create inference processing tab"""
         inference_frame = ttk.Frame(self.notebook)
-        self.notebook.add(inference_frame, text="🎯 Inference")
+        self.notebook.add(inference_frame, text="[TARGET] Inference")
         
         # Enhanced Inference section
         enhanced_frame = ttk.LabelFrame(inference_frame, text="Enhanced Inference", padding=15)
@@ -141,20 +141,20 @@ measurements using advanced AI segmentation and data visualization.
         ttk.Label(enhanced_frame, text="Advanced AI inference with multiple model and subject selection", 
                  font=("Arial", 10)).pack(anchor=tk.W, pady=(0, 5))
         
-        ttk.Label(enhanced_frame, text="✨ New Features: Multiple subject selection (checkboxes) + Model selection (radiobuttons)", 
+        ttk.Label(enhanced_frame, text="[NEW] New Features: Multiple subject selection (checkboxes) + Model selection (radiobuttons)", 
                  font=("Arial", 9), foreground="darkgreen").pack(anchor=tk.W, pady=(0, 10))
         
         inference_buttons = ttk.Frame(enhanced_frame)
         inference_buttons.pack(fill=tk.X)
         
-        ttk.Button(inference_buttons, text="🎯 Enhanced Inference (Multiple Subjects + Model Selection)", 
+        ttk.Button(inference_buttons, text="[TARGET] Enhanced Inference (Multiple Subjects + Model Selection)", 
                   command=self.run_enhanced_inference, width=50).pack(pady=2, fill=tk.X)
-        ttk.Button(inference_buttons, text="📋 Single Subject Inference (Legacy)",                  command=self.run_single_inference, width=50).pack(pady=2, fill=tk.X)
+        ttk.Button(inference_buttons, text="[LIST] Single Subject Inference (Legacy)",                  command=self.run_single_inference, width=50).pack(pady=2, fill=tk.X)
     
     def create_analytics_tab(self):
         """Create analytics and visualization tab"""
         analytics_frame = ttk.Frame(self.notebook)
-        self.notebook.add(analytics_frame, text="📊 Analytics")
+        self.notebook.add(analytics_frame, text="Analytics")
         
         # Data Viewer section
         viewer_frame = ttk.LabelFrame(analytics_frame, text="Data Visualization", padding=15)
@@ -167,7 +167,7 @@ measurements using advanced AI segmentation and data visualization.
         viewer_grid = ttk.Frame(viewer_frame)
         viewer_grid.pack(fill=tk.X)
         
-        ttk.Button(viewer_grid, text="📈 Enhanced Data Viewer", 
+        ttk.Button(viewer_grid, text="[CHART] Enhanced Data Viewer", 
                   command=self.run_data_viewer, width=30).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
         
         ttk.Button(viewer_grid, text="🔄 Frame Comparison Viewer (NEW!)", 
@@ -189,13 +189,13 @@ measurements using advanced AI segmentation and data visualization.
         ttk.Label(advanced_frame, text="Comprehensive statistical analysis and reporting", 
                  font=("Arial", 10)).pack(anchor=tk.W, pady=(0, 10))
         
-        ttk.Button(advanced_frame, text="📊 Advanced Analytics Dashboard", 
+        ttk.Button(advanced_frame, text="Advanced Analytics Dashboard", 
                   command=self.run_advanced_analytics, width=30).pack(fill=tk.X)
     
     def create_tools_tab(self):
         """Create tools and utilities tab"""
         tools_frame = ttk.Frame(self.notebook)
-        self.notebook.add(tools_frame, text="🔧 Tools")
+        self.notebook.add(tools_frame, text="[TOOL] Tools")
           # System tools
         system_frame = ttk.LabelFrame(tools_frame, text="System Tools", padding=15)
         system_frame.pack(fill=tk.X, padx=10, pady=5)
@@ -203,7 +203,7 @@ measurements using advanced AI segmentation and data visualization.
         tools_grid = ttk.Frame(system_frame)
         tools_grid.pack(fill=tk.X)
         
-        ttk.Button(tools_grid, text="🔍 Check Dependencies", 
+        ttk.Button(tools_grid, text="[SEARCH] Check Dependencies", 
                   command=self.check_dependencies).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
         ttk.Button(tools_grid, text="📂 Open Data Folder", 
                   command=self.open_data_folder).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
@@ -215,9 +215,9 @@ measurements using advanced AI segmentation and data visualization.
         analysis_grid = ttk.Frame(analysis_tools_frame)
         analysis_grid.pack(fill=tk.X)
         
-        ttk.Button(analysis_grid, text="📊 Elasticity Calculator", 
+        ttk.Button(analysis_grid, text="Elasticity Calculator", 
                   command=self.launch_elasticity_calculator).grid(row=0, column=0, padx=5, pady=5, sticky="ew")
-        ttk.Button(analysis_grid, text="📈 Frame Comparison", 
+        ttk.Button(analysis_grid, text="[CHART] Frame Comparison", 
                   command=self.launch_frame_comparison).grid(row=0, column=1, padx=5, pady=5, sticky="ew")
         
         analysis_grid.columnconfigure(0, weight=1)
@@ -229,7 +229,7 @@ measurements using advanced AI segmentation and data visualization.
     def create_settings_tab(self):
         """Create settings tab with theme controls"""
         settings_frame = ttk.Frame(self.notebook)
-        self.notebook.add(settings_frame, text="⚙️ Settings")
+        self.notebook.add(settings_frame, text="[TOOL] Settings")
         
         # Create scrollable frame
         canvas = tk.Canvas(settings_frame)
@@ -499,9 +499,9 @@ measurements using advanced AI segmentation and data visualization.
             for dep in dependencies:
                 try:
                     __import__(dep)
-                    text_widget.insert(tk.END, f"✅ {dep}: OK\n")
+                    text_widget.insert(tk.END, f"[OK] {dep}: OK\n")
                 except ImportError:
-                    text_widget.insert(tk.END, f"❌ {dep}: NOT FOUND\n")
+                    text_widget.insert(tk.END, f"[NOT-FOUND] {dep}: NOT FOUND\n")
             
             text_widget.insert(tk.END, "\n" + "=" * 50 + "\n")
             text_widget.insert(tk.END, "Check completed.\n")

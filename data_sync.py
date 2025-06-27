@@ -119,9 +119,9 @@ def process_all_subjects():
         if result is not None:
             results[f"subject_{subject}"] = result
             success_count += 1
-            print(f"✅ Sinkronisasi data Subjek {subject} berhasil")
+            print(f"[SUCCESS] Sinkronisasi data Subjek {subject} berhasil")
         else:
-            print(f"❌ Sinkronisasi data Subjek {subject} gagal")
+            print(f"[ERROR] Sinkronisasi data Subjek {subject} gagal")
     
     print(f"\n{'='*50}")
     print(f"RINGKASAN PROSES")
@@ -149,7 +149,7 @@ def analyze_synced_data(all_synced_data):
     
     for subject_key, data in all_synced_data.items():
         print(f"\n{subject_key.upper().replace('_', ' ')}:")
-        print(f"  📊 Jumlah frame: {len(data)}")
+        print(f"  [INFO] Jumlah frame: {len(data)}")
         
         # Analisis diameter
         diameter_data = data['Diameter (mm)'].dropna()
@@ -228,7 +228,7 @@ def create_summary_report(all_synced_data):
     # Simpan ke CSV
     summary_df = pd.DataFrame(summary_data)
     summary_df.to_csv('synchronization_summary.csv', index=False)
-    print(f"\n📋 Laporan ringkasan disimpan di: synchronization_summary.csv")
+    print(f"\n[LIST] Laporan ringkasan disimpan di: synchronization_summary.csv")
     
     return summary_df
 
@@ -236,7 +236,7 @@ def main():
     """
     Main function untuk menjalankan sinkronisasi data
     """
-    print("🚀 Memulai proses sinkronisasi data...")
+    print("[START] Memulai proses sinkronisasi data...")
     
     # Proses semua subjek
     all_synced_data = process_all_subjects()
@@ -246,7 +246,7 @@ def main():
         analyze_synced_data(all_synced_data)
         create_summary_report(all_synced_data)
         
-        print(f"\n✅ Proses sinkronisasi selesai!")
+        print(f"\n[SUCCESS] Proses sinkronisasi selesai!")
         print(f"📁 File output:")
         for subject_num in range(1, 8):
             csv_file = f"synced_data_subject{subject_num}.csv"
@@ -257,7 +257,7 @@ def main():
                 print(f"   - {plot_file}")
         print(f"   - synchronization_summary.csv")
     else:
-        print("❌ Tidak ada data yang berhasil disinkronisasi.")
+        print("[ERROR] Tidak ada data yang berhasil disinkronisasi.")
 
 if __name__ == "__main__":
     main()

@@ -23,8 +23,22 @@ import pandas as pd
 from scipy.interpolate import interp1d
 import argparse
 
-# Set device
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# Set device - try CUDA first, fallback to CPU if issues
+try:
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+        # Test CUDA with a simple operation
+        test_tensor = torch.tensor([1.0]).cuda()
+        _ = test_tensor + 1  # Test basic operation
+        print(f"Using device: {device} (CUDA available and working)")
+    else:
+        device = torch.device('cpu')
+        print(f"Using device: {device} (CUDA not available)")
+except Exception as e:
+    print(f"CUDA error detected: {e}")
+    print("Falling back to CPU processing...")
+    device = torch.device('cpu')
+    print(f"Using device: {device} (CPU fallback)")
 
 class UNetCompatible(nn.Module):
     """U-Net kompatibel dengan model yang tersimpan"""
@@ -207,15 +221,16 @@ class VideoProcessor:
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
         else:
             frame_rgb = frame
-        
-        # Apply transform (resize + normalize)
+          # Apply transform (resize + normalize)
         transformed = self.transform(image=frame_rgb)
         tensor_frame = transformed['image'].unsqueeze(0).to(self.device)
         
         return tensor_frame
+    
     def predict_mask(self, frame):
         """
         Prediksi mask dari frame (sesuai dengan implementasi notebook)
+        Optimized version with torch.no_grad() and CPU processing
         
         Args:
             frame: Input frame (BGR format dari OpenCV)
@@ -225,7 +240,7 @@ class VideoProcessor:
         """
         original_size = (frame.shape[1], frame.shape[0])  # (width, height)
         
-        with torch.no_grad():
+        with torch.no_grad():  # Disable gradient computation for faster inference
             # Preprocess frame
             tensor_frame = self.preprocess_frame(frame)
             
@@ -315,9 +330,11 @@ class VideoProcessor:
                 cv2.putText(overlay, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
         
         return overlay
+    
     def process_video_with_diameter(self, video_path, output_path, plot_path, csv_path):
         """
         Proses video dengan overlay segmentasi dan hitung diameter (sesuai notebook)
+        Includes timestamp integration if available
         
         Args:
             video_path (str): Path ke video input
@@ -333,8 +350,7 @@ class VideoProcessor:
         # Open video
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            raise ValueError(f"Cannot open video: {video_path}")
-        
+            raise ValueError(f"Cannot open video: {video_path}")        
         # Get video properties
         fps = int(cap.get(cv2.CAP_PROP_FPS))
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -345,17 +361,46 @@ class VideoProcessor:
         print(f"Video properties: {width}x{height}, {fps} FPS, {total_frames} frames")
         print(f"Scale: {scale_mm_per_pixel:.6f} mm/pixel")
         
+        # Try to load timestamp data for integration
+        timestamp_data = None
+        try:
+            # Extract subject name from video path
+            video_dir = os.path.dirname(video_path)
+            subject_name = os.path.basename(video_dir)
+            timestamps_csv_path = os.path.join("data_uji", subject_name, "timestamps.csv")
+            
+            if os.path.exists(timestamps_csv_path):
+                timestamp_data = pd.read_csv(timestamps_csv_path)
+                print(f"[OK] Found timestamp data: {len(timestamp_data)} entries")
+                print(f"Timestamp columns: {list(timestamp_data.columns)}")
+                
+                # Ensure consistent column names
+                if 'Frame Number' in timestamp_data.columns:
+                    timestamp_data['Frame'] = timestamp_data['Frame Number']
+                elif 'frame' in timestamp_data.columns:
+                    timestamp_data['Frame'] = timestamp_data['frame']
+                elif 'Frame' not in timestamp_data.columns:
+                    # If no Frame column, create one based on index
+                    timestamp_data['Frame'] = timestamp_data.index
+                    
+            else:
+                print(f"[WARN] No timestamp data found at: {timestamps_csv_path}")
+        except Exception as e:
+            print(f"[WARN] Warning: Could not load timestamp data: {e}")
+            timestamp_data = None
+        
         # Setup video writer
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-        
-        # Lists to store data
+          # Lists to store data
         frame_diameters_mm = []
         frame_numbers = []
         
         frame_idx = 0
         
         print("Processing frames...")
+        print(f"Total frames to process: {total_frames}")
+        
         while True:
             ret, frame = cap.read()
             if not ret:
@@ -363,7 +408,8 @@ class VideoProcessor:
             
             # Predict mask
             mask = self.predict_mask(frame)
-              # Calculate diameter menggunakan scale yang benar
+            
+            # Calculate diameter menggunakan scale yang benar
             diameter_mm = self.calculate_diameter(mask, scale_mm_per_pixel)
             
             # Draw overlay
@@ -376,25 +422,90 @@ class VideoProcessor:
             
             # Write frame
             out.write(overlay)
-            
-            # Display progress
-            if frame_idx % 100 == 0:
-                print(f"Processed {frame_idx}/{total_frames} frames")
+              # Enhanced progress display with percentage
+            if frame_idx % 25 == 0 or frame_idx == total_frames - 1:  # More frequent updates
+                progress_pct = (frame_idx + 1) / total_frames * 100
+                remaining_frames = total_frames - (frame_idx + 1)
+                
+                # Create simple progress bar
+                bar_length = 30
+                filled_length = int(bar_length * (frame_idx + 1) // total_frames)
+                bar = '█' * filled_length + '░' * (bar_length - filled_length)
+                
+                print(f"[PROGRESS] {bar} {progress_pct:.1f}% ({frame_idx + 1}/{total_frames}) - Diameter: {diameter_mm:.2f}mm")
             
             frame_idx += 1
           # Release resources
         cap.release()
         out.release()
-        print(f"Video saved to: {output_path}")
-        
-        # Save CSV data
+        print(f"Video saved to: {output_path}")        # Save CSV data with timestamp integration
         if frame_diameters_mm:
-            with open(csv_path, mode='w', newline='') as file:
+            # Prepare data for CSV
+            csv_data = []
+            
+            # Create timestamp mapping if available
+            timestamp_map = {}
+            if timestamp_data is not None:
+                print(f"Creating timestamp mapping from {len(timestamp_data)} timestamp entries...")
+                
+                # Try different column combinations
+                frame_col = None
+                timestamp_col = None
+                
+                # Find frame column
+                if 'Frame' in timestamp_data.columns:
+                    frame_col = 'Frame'
+                elif 'Frame Number' in timestamp_data.columns:
+                    frame_col = 'Frame Number'
+                elif 'frame' in timestamp_data.columns:
+                    frame_col = 'frame'
+                
+                # Find timestamp column
+                if 'Timestamp' in timestamp_data.columns:
+                    timestamp_col = 'Timestamp'
+                elif 'timestamp' in timestamp_data.columns:
+                    timestamp_col = 'timestamp'
+                elif 'Time' in timestamp_data.columns:
+                    timestamp_col = 'Time'
+                
+                if frame_col and timestamp_col:
+                    for _, row in timestamp_data.iterrows():
+                        try:
+                            frame_num = int(row[frame_col])
+                            timestamp = row[timestamp_col]
+                            timestamp_map[frame_num] = timestamp
+                        except (ValueError, TypeError) as e:
+                            print(f"Warning: Could not parse row {row.name}: {e}")
+                    print(f"Created timestamp mapping for {len(timestamp_map)} frames")
+                else:
+                    print(f"Warning: Could not find appropriate columns. Available: {list(timestamp_data.columns)}")
+                    print(f"Frame column: {frame_col}, Timestamp column: {timestamp_col}")
+            
+            # Write CSV with enhanced data
+            with open(csv_path, mode='w', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
-                writer.writerow(["Frame", "Diameter (mm)"])
+                  # Header - include timestamp if available
+                if timestamp_map:
+                    writer.writerow(["Frame", "Diameter (mm)", "Timestamp"])
+                    print("[OK] Creating CSV with Frame, Diameter, and Timestamp columns")
+                else:
+                    writer.writerow(["Frame", "Diameter (mm)"])
+                    print("[WARN] Creating CSV with Frame and Diameter columns only (no timestamps)")
+                  # Data rows
                 for frame, diameter_mm in zip(frame_numbers, frame_diameters_mm):
-                    writer.writerow([frame, diameter_mm])
-            print(f"Diameter data saved to: {csv_path}")
+                    if timestamp_map and frame in timestamp_map:
+                        writer.writerow([frame, f"{diameter_mm:.4f}", timestamp_map[frame]])
+                    else:
+                        writer.writerow([frame, f"{diameter_mm:.4f}"])
+            
+            print(f"[OK] Diameter data saved to: {csv_path}")
+            if timestamp_map:
+                matched_timestamps = sum(1 for frame in frame_numbers if frame in timestamp_map)
+                print(f"[INFO] Timestamp integration: {matched_timestamps}/{len(frame_numbers)} frames have timestamps")
+                if matched_timestamps < len(frame_numbers):
+                    print(f"[WARN] Some frames don't have corresponding timestamps")
+            else:
+                print("[WARN] No timestamp data integrated - check timestamp file format")
             
             # Create plot
             plt.figure(figsize=(12, 6))
@@ -530,8 +641,7 @@ class VideoProcessor:
         
         # Process video normally first
         self.process_video_with_diameter(video_path, output_path, plot_path, csv_path)
-        
-        # If pressure data available, create enhanced analysis
+          # If pressure data available, create enhanced analysis
         if pressure_df is not None:
             try:
                 self.create_enhanced_analysis_with_pressure(
@@ -539,7 +649,7 @@ class VideoProcessor:
                 )
             except Exception as e:
                 print(f"Warning: Could not create enhanced pressure analysis: {str(e)}")
-
+    
     def create_enhanced_analysis_with_pressure(self, diameter_csv_path, pressure_df, timestamps_df, base_plot_path):
         """
         Buat analisis enhanced dengan data tekanan
@@ -554,6 +664,7 @@ class VideoProcessor:
             # Load diameter data
             diameter_df = pd.read_csv(diameter_csv_path)
             print(f"Loaded diameter data for pressure integration: {len(diameter_df)} frames")
+            print(f"Diameter CSV columns: {list(diameter_df.columns)}")
             
             # Prepare data for synchronization
             if timestamps_df is not None and pressure_df is not None:
@@ -579,13 +690,20 @@ class VideoProcessor:
                         # Interpolate pressure for each frame
                         interpolated_pressure = pressure_interpolator(frame_indices)
                         
-                        # Add pressure to diameter data
+                        # Add pressure to diameter data (preserving existing columns including timestamp)
                         diameter_df['pressure'] = interpolated_pressure
                         
-                        # Save enhanced CSV
+                        # Save enhanced CSV with all columns preserved
                         enhanced_csv_path = diameter_csv_path.replace('.csv', '_with_pressure.csv')
                         diameter_df.to_csv(enhanced_csv_path, index=False)
+                        
                         print(f"Enhanced CSV with pressure saved: {enhanced_csv_path}")
+                        print(f"Enhanced CSV columns: {list(diameter_df.columns)}")
+                        
+                        # Verify timestamp preservation
+                        if 'Timestamp' in diameter_df.columns:
+                            valid_timestamps = diameter_df['Timestamp'].notna().sum()
+                            print(f"Timestamps preserved: {valid_timestamps}/{len(diameter_df)} frames")
                         
                         # Create dual-axis plot
                         self.create_diameter_pressure_plot(diameter_df, base_plot_path)
@@ -599,6 +717,8 @@ class VideoProcessor:
                 
         except Exception as e:
             print(f"Error in enhanced pressure analysis: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
     def create_diameter_pressure_plot(self, combined_df, base_plot_path):
         """

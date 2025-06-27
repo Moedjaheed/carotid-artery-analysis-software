@@ -26,20 +26,20 @@ def print_banner():
 
 def run_training():
     """Jalankan training model"""
-    print("\n🎯 STARTING MODEL TRAINING...")
+    print("\n[TARGET] STARTING MODEL TRAINING...")
     print("-" * 40)
     
     try:
         import training_model
         training_model.main()
-        print("✅ Training completed successfully!")
+        print("[SUCCESS] Training completed successfully!")
         return True
     except ImportError as e:
-        print(f"❌ Import error: {e}")
-        print("💡 Make sure all dependencies are installed (pip install -r requirements.txt)")
+        print(f"[ERROR] Import error: {e}")
+        print("[INFO] Make sure all dependencies are installed (pip install -r requirements.txt)")
         return False
     except Exception as e:
-        print(f"❌ Training failed: {e}")
+        print(f"[ERROR] Training failed: {e}")
         return False
 
 def run_inference():
@@ -50,14 +50,14 @@ def run_inference():
     try:
         import video_inference
         video_inference.main()
-        print("✅ Video inference completed successfully!")
+        print("[SUCCESS] Video inference completed successfully!")
         return True
     except ImportError as e:
-        print(f"❌ Import error: {e}")
-        print("💡 Make sure all dependencies are installed (pip install -r requirements.txt)")
+        print(f"[ERROR] Import error: {e}")
+        print("[INFO] Make sure all dependencies are installed (pip install -r requirements.txt)")
         return False
     except Exception as e:
-        print(f"❌ Video inference failed: {e}")
+        print(f"[ERROR] Video inference failed: {e}")
         return False
 
 def run_data_sync():
@@ -68,35 +68,35 @@ def run_data_sync():
     try:
         import data_sync
         data_sync.main()
-        print("✅ Data synchronization completed successfully!")
+        print("[SUCCESS] Data synchronization completed successfully!")
         return True
     except ImportError as e:
-        print(f"❌ Import error: {e}")
+        print(f"[ERROR] Import error: {e}")
         return False
     except Exception as e:
-        print(f"❌ Data synchronization failed: {e}")
+        print(f"[ERROR] Data synchronization failed: {e}")
         return False
 
 def run_data_viewer():
     """Jalankan data viewer"""
-    print("\n📊 OPENING DATA VIEWER...")
+    print("\n[INFO] OPENING DATA VIEWER...")
     print("-" * 40)
     
     try:
         import data_viewer
         data_viewer.main()
-        print("✅ Data viewer opened successfully!")
+        print("[SUCCESS] Data viewer opened successfully!")
         return True
     except ImportError as e:
-        print(f"❌ Import error: {e}")
+        print(f"[ERROR] Import error: {e}")
         return False
     except Exception as e:
-        print(f"❌ Data viewer failed: {e}")
+        print(f"[ERROR] Data viewer failed: {e}")
         return False
 
 def run_launcher():
     """Jalankan GUI launcher"""
-    print("\n🚀 OPENING LAUNCHER...")
+    print("\n[START] OPENING LAUNCHER...")
     print("-" * 40)
     
     try:
@@ -104,15 +104,15 @@ def run_launcher():
         launcher_with_inference_log.main()
         return True
     except ImportError as e:
-        print(f"❌ Import error: {e}")
+        print(f"[ERROR] Import error: {e}")
         return False
     except Exception as e:
-        print(f"❌ Launcher failed: {e}")
+        print(f"[ERROR] Launcher failed: {e}")
         return False
 
 def run_advanced_analytics():
     """Jalankan advanced analytics"""
-    print("\n📊 OPENING ADVANCED ANALYTICS...")
+    print("\n[INFO] OPENING ADVANCED ANALYTICS...")
     print("-" * 40)
     
     try:
@@ -120,10 +120,10 @@ def run_advanced_analytics():
         advanced_analytics.main()
         return True
     except ImportError as e:
-        print(f"❌ Import error: {e}")
+        print(f"[ERROR] Import error: {e}")
         return False
     except Exception as e:
-        print(f"❌ Advanced analytics failed: {e}")
+        print(f"[ERROR] Advanced analytics failed: {e}")
         return False
 
 def run_full_pipeline():
@@ -144,10 +144,10 @@ def run_full_pipeline():
         results.append((step_name, success))
         
         if not success:
-            print(f"❌ Pipeline stopped at: {step_name}")
+            print(f"[ERROR] Pipeline stopped at: {step_name}")
             break
         else:
-            print(f"✅ {step_name} completed")
+            print(f"[SUCCESS] {step_name} completed")
     
     # Summary
     print("\n" + "=" * 50)
@@ -155,21 +155,21 @@ def run_full_pipeline():
     print("=" * 50)
     
     for step_name, success in results:
-        status = "✅ SUCCESS" if success else "❌ FAILED"
+        status = "[SUCCESS] SUCCESS" if success else "[ERROR] FAILED"
         print(f"{step_name:<25} : {status}")
     
     all_success = all(success for _, success in results)
     if all_success:
-        print("\n🎉 Full pipeline completed successfully!")
-        print("📊 You can now run the data viewer to see results")
+        print("\n[PARTY] Full pipeline completed successfully!")
+        print("[INFO] You can now run the data viewer to see results")
     else:
-        print("\n⚠️  Pipeline completed with some failures")
+        print("\n[WARN]  Pipeline completed with some failures")
     
     return all_success
 
 def check_setup():
     """Check sistem setup"""
-    print("\n🔍 CHECKING SYSTEM SETUP...")
+    print("\n[SEARCH] CHECKING SYSTEM SETUP...")
     print("-" * 40)
     
     # Check Python version
@@ -191,30 +191,30 @@ def check_setup():
     missing_files = []
     for file in required_files:
         if os.path.exists(file):
-            print(f"✅ {file}")
+            print(f"[SUCCESS] {file}")
         else:
-            print(f"❌ {file}")
+            print(f"[ERROR] {file}")
             missing_files.append(file)
     
     if missing_files:
-        print(f"\n⚠️  Missing files: {', '.join(missing_files)}")
+        print(f"\n[WARN]  Missing files: {', '.join(missing_files)}")
         return False
     
     # Try to import config
     try:
         import config
-        print("✅ Configuration loaded")
+        print("[SUCCESS] Configuration loaded")
         
         # Check requirements
         success, missing = config.check_requirements()
         if not success:
-            print("⚠️  Missing requirements:")
+            print("[WARN]  Missing requirements:")
             for item in missing:
                 print(f"   - {item}")
         
         return success
     except ImportError:
-        print("❌ Configuration could not be loaded")
+        print("[ERROR] Configuration could not be loaded")
         return False
 
 def show_menu():
@@ -223,15 +223,15 @@ def show_menu():
         print("\n" + "="*60)
         print("🫀 CAROTID SEGMENTATION - MAIN MENU")
         print("="*60)
-        print("1. 📊 Advanced Analytics")
-        print("2. 🔍 Check Setup")
-        print("3. 🎯 Train Model")
+        print("1. [INFO] Advanced Analytics")
+        print("2. [SEARCH] Check Setup")
+        print("3. [TARGET] Train Model")
         print("4. 🎬 Run Video Inference")
         print("5. 🔄 Synchronize Data")
-        print("6. 📊 Open Data Viewer")
-        print("7. 🚀 Open GUI Launcher")
+        print("6. [INFO] Open Data Viewer")
+        print("7. [START] Open GUI Launcher")
         print("8. 🏭 Run Full Pipeline")
-        print("9. ❌ Exit")
+        print("9. [ERROR] Exit")
         print("-"*60)
         
         try:
@@ -257,13 +257,13 @@ def show_menu():
                 print("\n👋 Goodbye!")
                 break
             else:
-                print("❌ Invalid choice. Please select 1-9.")
+                print("[ERROR] Invalid choice. Please select 1-9.")
                 
         except KeyboardInterrupt:
             print("\n\n👋 Goodbye!")
             break
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f"[ERROR] Error: {e}")
 
 def main():
     """Main function"""
@@ -296,7 +296,7 @@ def main():
         show_menu()
         return True
     else:
-        print(f"❌ Unknown mode: {args.mode}")
+        print(f"[ERROR] Unknown mode: {args.mode}")
         return False
 
 if __name__ == "__main__":
@@ -307,5 +307,5 @@ if __name__ == "__main__":
         print("\n\n👋 Program interrupted by user")
         sys.exit(0)
     except Exception as e:
-        print(f"\n❌ Unexpected error: {e}")
+        print(f"\n[ERROR] Unexpected error: {e}")
         sys.exit(1)

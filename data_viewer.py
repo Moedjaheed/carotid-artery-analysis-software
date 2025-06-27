@@ -61,9 +61,9 @@ class EnhancedDataViewer:
                             if has_inference:
                                 # Check for diameter data
                                 diameter_files = glob.glob(os.path.join(inference_path, "*diameter_data*.csv"))
-                                status = "✅ Complete" if diameter_files else "⚠️ No Analysis"
+                                status = "[SUCCESS] Complete" if diameter_files else "[WARN] No Analysis"
                             else:
-                                status = "❌ No Results"
+                                status = "[ERROR] No Results"
                             
                             self.available_subjects.append(f"{item} [{status}]")
                         
@@ -247,9 +247,9 @@ class EnhancedDataViewer:
             # Final status message
             data_status = []
             if self.diameter_data is not None:
-                data_status.append("Diameter ✅")
+                data_status.append("Diameter [SUCCESS]")
             if self.pressure_data is not None:
-                data_status.append("Pressure ✅")
+                data_status.append("Pressure [SUCCESS]")
             
             status_msg = f"Loaded {subject_name} - {self.total_frames} frames"
             if data_status:
@@ -503,12 +503,12 @@ class EnhancedDataViewer:
                 self.ax.set_title('Diameter vs Pressure Analysis')
         else:
             # No data loaded
-            message = 'No analysis data available\nSelect a subject with ✅ Complete status'
+            message = 'No analysis data available\nSelect a subject with [SUCCESS] Complete status'
             if hasattr(self, 'subject_var') and self.subject_var.get():
                 selected = self.subject_var.get()
-                if "❌ No Results" in selected:
+                if "[ERROR] No Results" in selected:
                     message = 'No inference results found\nRun video inference first'
-                elif "⚠️ No Analysis" in selected:
+                elif "[WARN] No Analysis" in selected:
                     message = 'Video available but no diameter analysis\nRun advanced analytics first'
             
             self.ax.text(0.5, 0.5, message, 

@@ -68,9 +68,9 @@ class FrameComparisonViewer:
                             if has_inference:
                                 # Check for diameter data
                                 diameter_files = glob.glob(os.path.join(inference_path, "*diameter_data*.csv"))
-                                status = "✅ Complete" if diameter_files else "⚠️ No Analysis"
+                                status = "[SUCCESS] Complete" if diameter_files else "[WARN] No Analysis"
                             else:
-                                status = "❌ No Results"
+                                status = "[ERROR] No Results"
                             
                             self.available_subjects.append(f"{item} [{status}]")
                         
@@ -390,9 +390,9 @@ class FrameComparisonViewer:
             # Final status message
             data_status = []
             if self.diameter_data is not None:
-                data_status.append("Diameter ✅")
+                data_status.append("Diameter [SUCCESS]")
             if self.pressure_data is not None:
-                data_status.append("Pressure ✅")
+                data_status.append("Pressure [SUCCESS]")
             
             status_msg = f"Loaded {subject_name} - {self.total_frames} frames"
             if data_status:

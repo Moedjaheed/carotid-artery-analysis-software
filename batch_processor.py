@@ -40,20 +40,20 @@ class BatchProcessor:
         all_results = {}
         
         for subject_num in subjects:
-            print(f"\n📊 Processing Subject {subject_num}...")
+            print(f"\n[INFO] Processing Subject {subject_num}...")
             try:
                 # Generate comprehensive report for this subject
                 report = self.analytics.generate_comprehensive_report(subject_num)
                 
                 if report and report['basic_statistics']:
                     all_results[subject_num] = report
-                    print(f"✅ Subject {subject_num} processed successfully")
+                    print(f"[SUCCESS] Subject {subject_num} processed successfully")
                 else:
-                    print(f"⚠️ Subject {subject_num} - insufficient data")
+                    print(f"[WARN] Subject {subject_num} - insufficient data")
                     all_results[subject_num] = {'error': 'Insufficient data'}
                     
             except Exception as e:
-                print(f"❌ Error processing Subject {subject_num}: {str(e)}")
+                print(f"[ERROR] Error processing Subject {subject_num}: {str(e)}")
                 all_results[subject_num] = {'error': str(e)}
         
         self.results = all_results
@@ -73,10 +73,10 @@ class BatchProcessor:
             results = self.results
         
         if not results:
-            print("❌ No results available for comparative analysis")
+            print("[ERROR] No results available for comparative analysis")
             return {}
         
-        print("📈 Creating comparative analysis...")
+        print("[CHART] Creating comparative analysis...")
         
         # Extract data for comparison
         comparison_data = {
@@ -171,13 +171,13 @@ class BatchProcessor:
             matplotlib.figure.Figure: The created figure
         """
         if not comparative_results or 'detailed_data' not in comparative_results:
-            print("❌ No comparative data available for visualization")
+            print("[ERROR] No comparative data available for visualization")
             return None
         
         df = comparative_results['detailed_data']
         
         if df.empty:
-            print("❌ No valid data for visualization")
+            print("[ERROR] No valid data for visualization")
             return None
         
         # Set up the figure
@@ -388,7 +388,7 @@ class BatchProcessor:
         
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
-            print(f"✅ Comparative visualization saved to: {save_path}")
+            print(f"[SUCCESS] Comparative visualization saved to: {save_path}")
         
         return fig
     
@@ -447,7 +447,7 @@ class BatchProcessor:
                     reports_df = pd.DataFrame(reports_data)
                     reports_df.to_excel(writer, sheet_name='Individual_Stats', index=False)
         
-        print(f"✅ Results exported to: {filename}")
+        print(f"[SUCCESS] Results exported to: {filename}")
         return filename
     
     def run_complete_batch_analysis(self, subjects=None, export_formats=['json'], create_viz=True):
@@ -462,13 +462,13 @@ class BatchProcessor:
         Returns:
             dict: Complete analysis results
         """
-        print("🚀 Starting complete batch analysis pipeline...")
+        print("[START] Starting complete batch analysis pipeline...")
         
         # Step 1: Process all subjects
         results = self.process_all_subjects(subjects)
         
         if not results:
-            print("❌ No subjects processed successfully")
+            print("[ERROR] No subjects processed successfully")
             return {}
         
         # Step 2: Create comparative analysis
@@ -489,12 +489,12 @@ class BatchProcessor:
                 filename = self.export_results(comparative_results, fmt)
                 exported_files.append(filename)
             except Exception as e:
-                print(f"⚠️ Failed to export as {fmt}: {str(e)}")
+                print(f"[WARN] Failed to export as {fmt}: {str(e)}")
         
         # Step 5: Generate summary report
         self.generate_summary_report(comparative_results)
         
-        print("✅ Complete batch analysis finished!")
+        print("[SUCCESS] Complete batch analysis finished!")
         print(f"📁 Exported files: {exported_files}")
         
         return comparative_results
@@ -554,7 +554,7 @@ class BatchProcessor:
                 f.write(f"  Quality score: {row['quality_score']:.0f}%\n")
                 f.write(f"  Data completeness: {row['data_available']}/5\n\n")
         
-        print(f"📄 Summary report saved to: {filename}")
+        print(f"[DOCS] Summary report saved to: {filename}")
 
 def main():
     """Main function for running batch processing"""
@@ -572,11 +572,11 @@ def main():
             create_viz=True
         )
         
-        print("\n✅ Batch processing completed successfully!")
-        print(f"📊 Processed {len(results.get('individual_reports', {}))} subjects")
+        print("\n[SUCCESS] Batch processing completed successfully!")
+        print(f"[INFO] Processed {len(results.get('individual_reports', {}))} subjects")
         
     except Exception as e:
-        print(f"❌ Error in batch processing: {str(e)}")
+        print(f"[ERROR] Error in batch processing: {str(e)}")
         return False
     
     return True

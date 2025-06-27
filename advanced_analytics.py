@@ -58,7 +58,7 @@ class AdvancedAnalytics:
     def __init__(self):
         """Initialize the analytics engine"""
         self.subjects_data = {}
-        print("✅ Advanced Analytics initialized")
+        print("[SUCCESS] Advanced Analytics initialized")
     
     def load_subject_data(self, subject_number):
         """
@@ -84,40 +84,40 @@ class AdvancedAnalytics:
             diameter_path = f"inference_results/{subject_name}/{subject_name}_diameter_data.csv"
             if os.path.exists(diameter_path):
                 subject_data['diameter_data'] = pd.read_csv(diameter_path)
-                print(f"✅ Loaded diameter data: {len(subject_data['diameter_data'])} frames")
+                print(f"[SUCCESS] Loaded diameter data: {len(subject_data['diameter_data'])} frames")
             
             # Try enhanced diameter data with pressure
             enhanced_path = f"inference_results/{subject_name}/{subject_name}_diameter_data_with_pressure.csv"
             if os.path.exists(enhanced_path):
                 subject_data['diameter_data'] = pd.read_csv(enhanced_path)
-                print(f"✅ Loaded enhanced diameter data: {len(subject_data['diameter_data'])} frames")
+                print(f"[SUCCESS] Loaded enhanced diameter data: {len(subject_data['diameter_data'])} frames")
             
             # Load timestamps
             timestamp_path = f"data_uji/{subject_name}/timestamps.csv"
             if os.path.exists(timestamp_path):
                 subject_data['timestamps'] = pd.read_csv(timestamp_path)
-                print(f"✅ Loaded timestamps: {len(subject_data['timestamps'])} entries")
+                print(f"[SUCCESS] Loaded timestamps: {len(subject_data['timestamps'])} entries")
             
             # Load pressure data
             pressure_path = f"data_uji/{subject_name}/subject{subject_number}.csv"
             if os.path.exists(pressure_path):
                 subject_data['pressure_data'] = pd.read_csv(pressure_path)
-                print(f"✅ Loaded pressure data: {len(subject_data['pressure_data'])} entries")
+                print(f"[SUCCESS] Loaded pressure data: {len(subject_data['pressure_data'])} entries")
             
             # Check for video file
             video_path = f"data_uji/{subject_name}/{subject_name}.mp4"
             if os.path.exists(video_path):
                 subject_data['video_path'] = os.path.abspath(video_path)
-                print(f"✅ Video file found: {subject_data['video_path']}")
+                print(f"[SUCCESS] Video file found: {subject_data['video_path']}")
             
             # Check for segmentation results
             seg_video_path = f"inference_results/{subject_name}/{subject_name}_segmented_video.mp4"
             if os.path.exists(seg_video_path):
                 subject_data['segmentation_results'] = os.path.abspath(seg_video_path)
-                print(f"✅ Segmentation results found: {subject_data['segmentation_results']}")
+                print(f"[SUCCESS] Segmentation results found: {subject_data['segmentation_results']}")
                 
         except Exception as e:
-            print(f"⚠️ Error loading subject {subject_number} data: {str(e)}")
+            print(f"[WARN] Error loading subject {subject_number} data: {str(e)}")
         
         return subject_data
     
@@ -137,7 +137,7 @@ class AdvancedAnalytics:
         # Get diameter column safely
         diameter_col = get_diameter_column(diameter_data)
         if diameter_col is None:
-            print("❌ No diameter column found in data")
+            print("[ERROR] No diameter column found in data")
             return {}
         
         diameters = diameter_data[diameter_col].dropna()
@@ -175,7 +175,7 @@ class AdvancedAnalytics:
             stats_dict['pulse_pressure_mm'] = stats_dict['estimated_systolic'] - stats_dict['estimated_diastolic']
             
         except Exception as e:
-            print(f"⚠️ Error in enhanced statistics: {str(e)}")
+            print(f"[WARN] Error in enhanced statistics: {str(e)}")
             stats_dict['estimated_systolic'] = float(diameters.max())
             stats_dict['estimated_diastolic'] = float(diameters.min())
             stats_dict['pulse_pressure_mm'] = stats_dict['estimated_systolic'] - stats_dict['estimated_diastolic']
@@ -246,7 +246,7 @@ class AdvancedAnalytics:
             return cycles
             
         except Exception as e:
-            print(f"⚠️ Error in cardiac cycle analysis: {str(e)}")
+            print(f"[WARN] Error in cardiac cycle analysis: {str(e)}")
             return {}
     
     def assess_data_quality(self, subject_data):
@@ -325,7 +325,7 @@ class AdvancedAnalytics:
                 
         except Exception as e:
             quality['issues'].append(f"Error in quality assessment: {str(e)}")
-            print(f"⚠️ Error in quality assessment: {str(e)}")
+            print(f"[WARN] Error in quality assessment: {str(e)}")
         
         return quality
 
@@ -339,7 +339,7 @@ class AdvancedAnalytics:
         Returns:
             dict: Comprehensive report
         """
-        print(f"🔍 Generating comprehensive report for Subject {subject_number}...")
+        print(f"[SEARCH] Generating comprehensive report for Subject {subject_number}...")
         
         # Load subject data
         subject_data = self.load_subject_data(subject_number)
@@ -386,22 +386,22 @@ class AdvancedAnalytics:
         
         try:
             if quality['overall_score'] < 50:
-                recommendations.append("⚠️ Data quality is below acceptable threshold. Consider recalibration.")
+                recommendations.append("[WARN] Data quality is below acceptable threshold. Consider recalibration.")
             
             if stats and stats.get('cv', 0) > 30:
-                recommendations.append("📊 High variability detected. Check for measurement artifacts.")
+                recommendations.append("[INFO] High variability detected. Check for measurement artifacts.")
             
             if quality['issues']:
-                recommendations.append("🔍 Address identified data quality issues before clinical interpretation.")
+                recommendations.append("[SEARCH] Address identified data quality issues before clinical interpretation.")
             
             if stats and stats.get('count', 0) < 100:
                 recommendations.append("📏 Limited data points. Consider longer recording for better analysis.")
             
             if quality['overall_score'] > 80:
-                recommendations.append("✅ Excellent data quality. Results are reliable for clinical analysis.")
+                recommendations.append("[SUCCESS] Excellent data quality. Results are reliable for clinical analysis.")
                 
         except Exception as e:
-            recommendations.append(f"❌ Error generating recommendations: {str(e)}")
+            recommendations.append(f"[ERROR] Error generating recommendations: {str(e)}")
         
         return recommendations
 
@@ -416,7 +416,7 @@ def create_analytics_gui():
     def run_analysis():
         try:
             subject_num = int(subject_var.get())
-            print(f"🔍 Generating comprehensive report for Subject {subject_num}...")
+            print(f"[SEARCH] Generating comprehensive report for Subject {subject_num}...")
             
             # Load subject data
             subject_data = analytics.load_subject_data(subject_num)
@@ -439,12 +439,12 @@ def create_analytics_gui():
             if quality['strengths']:
                 result_text.insert(tk.END, "\\nSTRENGTHS:\\n")
                 for strength in quality['strengths']:
-                    result_text.insert(tk.END, f"✅ {strength}\\n")
+                    result_text.insert(tk.END, f"[SUCCESS] {strength}\\n")
             
             if quality['issues']:
                 result_text.insert(tk.END, "\\nISSUES:\\n")
                 for issue in quality['issues']:
-                    result_text.insert(tk.END, f"⚠️ {issue}\\n")
+                    result_text.insert(tk.END, f"[WARN] {issue}\\n")
             
             # Basic Statistics
             if stats:
